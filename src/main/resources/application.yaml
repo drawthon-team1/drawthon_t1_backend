@@ -35,3 +35,6 @@ volunteer:
   api:
     base-url: https://apis.data.go.kr/1741000/volunteerPartcptnService
     service-key: ${VOLUNTEER_API_SERVICE_KEY:}
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY:}
