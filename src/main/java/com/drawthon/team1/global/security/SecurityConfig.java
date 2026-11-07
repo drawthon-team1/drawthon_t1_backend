@@ -60,9 +60,17 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                "/swagger-ui/**",
+                "/swagger-ui.html",
+                "/v3/api-docs/**",
+                "/v3/api-docs.yaml",
+                "/api/map/**"
+        ).permitAll()
+        .anyRequest().authenticated()
+        );
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
