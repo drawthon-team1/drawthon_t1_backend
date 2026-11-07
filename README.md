@@ -64,4 +64,35 @@ POST 요청이 `403`이면 CSRF API를 다시 호출한 뒤 재시도하세요.
 .\gradlew.bat build -x test
 ```
 
-이번 정리에서는 테스트 코드를 추가하지 않았습니다.
+인증 컨텍스트 테스트와 팀 생성·초대·가입 흐름 통합 테스트가 포함되어 있습니다.
+
+## 팀 API
+
+모든 팀 API는 로그인 세션이 필요합니다. POST 요청 전에는 `GET /api/auth/csrf`로 받은 토큰을 사용합니다.
+
+1. `POST /api/teams`: 팀을 만들고 로그인 회원을 팀장으로 등록합니다.
+
+   ```json
+   { "name": "드로우톤 1팀" }
+   ```
+
+2. `POST /api/teams/{teamId}/invitations`: 팀장이 7일간 유효한 초대 링크와 QR 이미지 주소를 만듭니다.
+3. `GET /api/team-invitations/{token}`: 로그인한 초대 대상자가 팀명, 팀장, 현재 인원을 확인합니다.
+4. `POST /api/team-invitations/{token}/accept`: 초대를 수락합니다. 이미 가입한 회원이 다시 호출해도 중복 가입되지 않습니다.
+5. `GET /api/team-invitations/{token}/qr`: 초대 링크가 담긴 PNG QR 이미지를 반환합니다.
+6. `GET /api/teams/{teamId}`: 팀원과 역할을 포함한 팀 현황을 조회합니다.
+7. `GET /api/teams`: 로그인 회원이 가입한 팀 목록을 조회합니다.
+
+초대 링크의 프론트엔드 주소와 QR API의 백엔드 주소는 각각 `app.frontend-base-url`, `app.backend-base-url` 설정으로 변경할 수 있습니다.
+
+### 팀 기능 버튼 테스트
+
+서버 실행 후 <http://localhost:8080/teammaker-test.html>에 접속합니다.
+
+1. **관리자 자동 가입 + 로그인**을 누릅니다. `admin1@abc.com` / `1234` 계정을 자동으로 사용합니다.
+2. 팀 이름을 입력하고 **팀 생성**을 누릅니다.
+3. **초대 링크 + QR 생성**으로 링크와 QR 이미지를 확인합니다.
+4. **테스트 회원으로 수락**을 누르면 임시 회원 가입·로그인·초대 수락·관리자 재로그인을 자동으로 수행합니다.
+5. 팀 현황에서 추가된 회원을 확인합니다.
+
+페이지 아래의 API 요청 기록에서 각 요청 URL, HTTP 상태와 응답을 확인할 수 있습니다.

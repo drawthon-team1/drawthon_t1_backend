@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/auth-test.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth-test.html", "/teammaker-test.html").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/v3/api-docs.yaml").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
