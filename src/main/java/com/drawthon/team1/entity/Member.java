@@ -26,15 +26,20 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false, length = 40)
     private String nickname;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Role role;
+
     protected Member() { } // JPA용
 
-    private Member(String email, String pwHash, String nickname) {
+    private Member(String email, String pwHash, String nickname, Role role) {
         this.email = email;
         this.pwHash = pwHash;
         this.nickname = nickname;
+        this.role = role;
     }
 
-    public static Member create(String email, String pwHash, String nickname){
-        return new Member(email, pwHash, nickname);
+    public static Member create(String email, String pwHash, String nickname, Role role){
+        return new Member(email, pwHash, nickname, role);
     }
 }

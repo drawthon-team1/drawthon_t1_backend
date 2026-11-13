@@ -1,6 +1,7 @@
 package com.drawthon.team1.sessionlogin.controller;
 
 import com.drawthon.team1.entity.Member;
+import com.drawthon.team1.entity.Role;
 import com.drawthon.team1.sessionlogin.service.MemberService;
 import com.drawthon.team1.sessionlogin.web.dto.LoginRequest;
 import com.drawthon.team1.sessionlogin.web.dto.SignupRequest;
@@ -40,12 +41,12 @@ public class SessionAuthApiController {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
     }
 
-    @Operation(summary = "회원가입")
+    @Operation(summary = "회원가입", description = "role(ADMIN/USER)을 함께 보내면 그 역할로 가입한다. 생략하면 USER. MVP 데모용으로 누구나 ADMIN으로 가입할 수 있다.")
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public MemberResponse signup(@Valid @RequestBody SignupRequest request) {
         return MemberResponse.from(memberService.signup(
-                request.getEmail(), request.getPassword(), request.getNickname()));
+                request.getEmail(), request.getPassword(), request.getNickname(), request.getRole()));
     }
 
     @Operation(summary = "로그인", description = "성공 시 브라우저에 세션 쿠키 저장")
@@ -79,9 +80,9 @@ public class SessionAuthApiController {
         handler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
     }
 
-    public record MemberResponse(Long id, String email, String nickname) {
+    public record MemberResponse(Long id, String email, String nickname, Role role) {
         static MemberResponse from(Member member) {
-            return new MemberResponse(member.getId(), member.getEmail(), member.getNickname());
+            return new MemberResponse(member.getId(), member.getEmail(), member.getNickname(), member.getRole());
         }
     }
 }

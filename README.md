@@ -11,6 +11,11 @@ Java 25 / Spring Boot 기반 세션 인증 API입니다.
 Java 25가 PATH에 없다면 실행 전에 `JAVA_HOME`을 설치된 JDK 25 경로로 설정하세요.
 현재 DB는 기본 H2 메모리 DB이므로 서버를 재시작하면 가입 정보가 초기화됩니다.
 
+### 관리자 계정
+
+MVP 데모용으로 회원가입 요청에 `role`(`ADMIN` 또는 `USER`)을 함께 보내면 그 역할로 가입합니다. 생략하면 `USER`입니다.
+누구나 `ADMIN`으로 가입할 수 있으므로 실서비스 전에는 막아야 합니다.
+
 ## Swagger UI에서 확인
 
 서버 실행 후 <http://localhost:8080/swagger-ui/index.html>에 접속합니다.

@@ -2,6 +2,7 @@ package com.drawthon.team1.posting.client;
 
 import com.drawthon.team1.posting.dto.PostingExternalDTO;
 import com.drawthon.team1.posting.entity.Post;
+import com.drawthon.team1.posting.entity.WorkType;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +54,11 @@ class VolunteerApiClientTest {
     }
 
     private VolunteerApiClient client(String key) {
-        return new VolunteerApiClient("http://127.0.0.1:" + server.getAddress().getPort() + "/svc", key);
+        return client(key, "0600");
+    }
+
+    private VolunteerApiClient client(String key, String upperCategoryCode) {
+        return new VolunteerApiClient("http://127.0.0.1:" + server.getAddress().getPort() + "/svc", key, upperCategoryCode);
     }
 
     private static String success(String items) {
@@ -72,7 +77,7 @@ class VolunteerApiClientTest {
     void fetchDetailMapsItemAndKeepsKoreanWithoutCharsetHeader() {
         responseBody = success("<item><progrmRegistNo>3425935</progrmRegistNo><progrmSj>환경 정화 봉사</progrmSj>"
                 + "<progrmBgnde>20260301</progrmBgnde><noticeEndde>2026-05-31</noticeEndde>"
-                + "<rcritNmpr>5</rcritNmpr><appTotal>2</appTotal><actBeginTm>9</actBeginTm><email> </email></item>");
+                + "<rcritNmpr>5</rcritNmpr><appTotal>2</appTotal><actBeginTm>9</actBeginTm><actEndTm>18</actEndTm><actPlace> </actPlace></item>");
 
         Post post = client(SERVICE_KEY).fetchDetail("3425935").orElseThrow();
 
@@ -82,8 +87,30 @@ class VolunteerApiClientTest {
         assertThat(post.getRecruitmentEndDate()).isEqualTo(LocalDate.of(2026, 5, 31));
         assertThat(post.getRecruitmentCapacity()).isEqualTo(5);
         assertThat(post.getActivityStartTime()).isEqualTo("9");
-        assertThat(post.getManagerEmail()).isNull();
+        assertThat(post.getActivityPlace()).isNull();
+        assertThat(post.getReward()).isEqualTo(9);
         assertThat(requestPath.get()).isEqualTo("/svc/getVltrPartcptnItem");
+    }
+
+    @Test
+    void fetchDetailStoresAddressAndInfersWorkType() {
+        responseBody = success("<item><progrmSj>고구마 수확 일손돕기</progrmSj>"
+                + "<areaAddress1>경기도 포천시 군내면 꽃배산길 86 </areaAddress1></item>");
+
+        Post post = client(SERVICE_KEY).fetchDetail("1").orElseThrow();
+
+        assertThat(post.getAddress()).isEqualTo("경기도 포천시 군내면 꽃배산길 86");
+        assertThat(post.getWorkType()).isEqualTo(WorkType.HARVEST);
+    }
+
+    @Test
+    void fetchDetailIgnoresAddressPlaceholder() {
+        responseBody = success("<item><progrmSj>농촌마을 봉사</progrmSj><areaAddress1>수요처 지도</areaAddress1></item>");
+
+        Post post = client(SERVICE_KEY).fetchDetail("1").orElseThrow();
+
+        assertThat(post.getAddress()).isNull();
+        assertThat(post.getWorkType()).isEqualTo(WorkType.ETC);
     }
 
     @Test
@@ -117,7 +144,26 @@ class VolunteerApiClientTest {
                 .containsEntry("keyword", "환경 봉사")
                 .containsEntry("schCateGu", "all")
                 .containsEntry("pageNo", "2")
-                .containsEntry("numOfRows", "20");
+                .containsEntry("numOfRows", "20")
+                .containsEntry("upperClCode", "0600");
+    }
+
+    @Test
+    void searchAlwaysFiltersByConfiguredCategoryEvenWithoutKeyword() {
+        responseBody = success("");
+
+        client(SERVICE_KEY).search(null, 1, 10);
+
+        assertThat(decodedQuery()).containsEntry("upperClCode", "0600").doesNotContainKeys("keyword");
+    }
+
+    @Test
+    void searchWithoutConfiguredCategoryDoesNotFilter() {
+        responseBody = success("");
+
+        client(SERVICE_KEY, " ").search(null, 1, 10);
+
+        assertThat(decodedQuery()).doesNotContainKeys("upperClCode");
     }
 
     @Test

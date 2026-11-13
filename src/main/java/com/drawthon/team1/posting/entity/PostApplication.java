@@ -1,6 +1,6 @@
 package com.drawthon.team1.posting.entity;
 
-import com.drawthon.team1.user.entity.User;
+import com.drawthon.team1.entity.Member;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -17,14 +17,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 사용자가 공고 신청을 하게 되었을 때, 모집 신청 PK + post_id + user_id
- * 공고 신청 내역. 1365 api는 조회만 제공하므로 신청은 이 서비스 안에서만 관리된다.
- *
- * -> 만약 user를 다수로 지정하게 될 경우, user field를 list로 관리
+ * 공고 신청 내역 (어떤 회원이 어떤 공고에 신청했는지).
+ * 1365 api는 조회만 제공하므로 신청은 이 서비스 안에서만 관리된다.
  */
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "member_id"}))
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -40,6 +38,6 @@ public class PostApplication {
     private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
-    private User user;
+    @JoinColumn(name = "member_id")
+    private Member member;
 }

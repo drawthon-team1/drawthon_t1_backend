@@ -1,14 +1,14 @@
 package com.drawthon.team1.posting;
 
+import com.drawthon.team1.entity.Member;
+import com.drawthon.team1.entity.Role;
 import com.drawthon.team1.posting.client.VolunteerApiClient;
 import com.drawthon.team1.posting.dto.PostingExternalDTO;
 import com.drawthon.team1.posting.entity.Post;
 import com.drawthon.team1.posting.repository.PostApplicationRepository;
 import com.drawthon.team1.posting.repository.PostingRepository;
 import com.drawthon.team1.posting.service.PostingService;
-import com.drawthon.team1.user.entity.Role;
-import com.drawthon.team1.user.entity.User;
-import com.drawthon.team1.user.repository.UserRepository;
+import com.drawthon.team1.sessionlogin.repository.MemberRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,8 +17,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -33,8 +37,11 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,10 +50,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 인증은 아직 merge되지 않았으므로 보안 필터를 끄고 공고 기능만 검증한다.
+ * 보안 필터를 켠 상태로 검증한다. 로그인은 세션 대신 인증 객체(principal = 회원 ID)를 직접 넣는다.
  */
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 class PostingApiTest {
     private static final String BASE = "/api/v1/posting";
     private static final String IMPORT_BODY = "{\"programRegistrationNumber\":\"3425935\"}";
@@ -55,7 +62,7 @@ class PostingApiTest {
     @Autowired private PostingService postingService;
     @Autowired private PostingRepository postingRepository;
     @Autowired private PostApplicationRepository postApplicationRepository;
-    @Autowired private UserRepository userRepository;
+    @Autowired private MemberRepository memberRepository;
     @MockitoBean private VolunteerApiClient volunteerApiClient;
 
     private Long adminId;
@@ -63,23 +70,32 @@ class PostingApiTest {
 
     @BeforeEach
     void setUp() {
-        adminId = saveUser(Role.ADMIN);
-        userId = saveUser(Role.USER);
+        adminId = saveMember(Role.ADMIN);
+        userId = saveMember(Role.USER);
     }
 
     @AfterEach
     void tearDown() {
         postApplicationRepository.deleteAll();
         postingRepository.deleteAll();
-        userRepository.deleteAll();
+        memberRepository.deleteAll();
     }
 
-    private Long saveUser(Role role) {
-        return userRepository.save(User.builder()
-                .name("테스터")
-                .email(UUID.randomUUID() + "@test.com")
-                .role(role)
-                .build()).getId();
+    private Long saveMember(Role role) {
+        return memberRepository.save(Member.create(UUID.randomUUID() + "@test.com", "hash", "테스터", role)).getId();
+    }
+
+    private static RequestPostProcessor loginAs(Long memberId) {
+        return authentication(UsernamePasswordAuthenticationToken.authenticated(memberId, null, List.of()));
+    }
+
+    /** memberId로 로그인한 회원이 CSRF 토큰을 담아 보낸 요청 */
+    private ResultActions as(Long memberId, MockHttpServletRequestBuilder request) throws Exception {
+        return mockMvc.perform(request.with(loginAs(memberId)).with(csrf()));
+    }
+
+    private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {
+        return request.contentType(MediaType.APPLICATION_JSON).content(body);
     }
 
     private Post.PostBuilder recruitingPost() {
@@ -95,19 +111,10 @@ class PostingApiTest {
         return postingRepository.save(post).getId();
     }
 
-    private static String updateBody(String title) {
-        return """
-                {"programTitle":"%s","programContent":"내용","programStartDate":"2026-12-01","programEndDate":"2026-12-02",
-                 "recruitmentStartDate":"2026-11-01","recruitmentEndDate":"2026-11-30","recruitmentCapacity":3,"activityPlace":"서울"}
-                """.formatted(title);
-    }
-
-    // ---- 직접 생성 ----
-
     private static String createBody(String title, LocalDate recruitmentStart, LocalDate recruitmentEnd) {
         return """
                 {"programTitle":"%s","programContent":"내용","programStartDate":"2030-12-01","programEndDate":"2030-12-02",
-                 "recruitmentStartDate":"%s","recruitmentEndDate":"%s","recruitmentCapacity":3,"activityPlace":"서울"}
+                 "recruitmentStartDate":"%s","recruitmentEndDate":"%s","recruitmentCapacity":3,"activityPlace":"서울","reward":50000}
                 """.formatted(title, recruitmentStart, recruitmentEnd);
     }
 
@@ -115,18 +122,60 @@ class PostingApiTest {
         return createBody(title, LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
     }
 
+    private static String updateBody(String title) {
+        return """
+                {"programTitle":"%s","programContent":"내용","programStartDate":"2026-12-01","programEndDate":"2026-12-02",
+                 "activityStartTime":"9","activityEndTime":"13",
+                 "recruitmentStartDate":"2026-11-01","recruitmentEndDate":"2026-11-30","recruitmentCapacity":3,"activityPlace":"서울",
+                 "reward":70000}
+                """.formatted(title);
+    }
+
+    // ---- 보안 ----
+
+    @Test
+    void anonymousRequestsAreUnauthorized() throws Exception {
+        mockMvc.perform(get(BASE)).andExpect(status().isUnauthorized());
+        mockMvc.perform(json(post(BASE), recruitingBody("공고")).with(csrf())).andExpect(status().isUnauthorized());
+
+        assertThat(postingRepository.count()).isZero();
+    }
+
+    @Test
+    void changeRequestWithoutCsrfIsForbidden() throws Exception {
+        mockMvc.perform(json(post(BASE), recruitingBody("공고")).with(loginAs(adminId)))
+                .andExpect(status().isForbidden());
+
+        assertThat(postingRepository.count()).isZero();
+    }
+
+    @Test
+    void deletedMemberSessionIsRejected() throws Exception {
+        Long postingId = savePost(recruitingPost().build());
+        memberRepository.deleteById(userId);
+
+        as(userId, post(BASE + "/" + postingId + "/application"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // ---- 직접 생성 ----
+
     @Test
     void adminCreatesPostingDirectlyWithout1365AndItAppearsInList() throws Exception {
-        mockMvc.perform(post(BASE + "/" + adminId).contentType(MediaType.APPLICATION_JSON).content(recruitingBody("직접 작성 공고")))
+        as(adminId, json(post(BASE), recruitingBody("직접 작성 공고")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.programTitle").value("직접 작성 공고"))
                 .andExpect(jsonPath("$.programRegistrationNumber").isEmpty())
-                .andExpect(jsonPath("$.applicantCount").value(0));
+                .andExpect(jsonPath("$.applicantCount").value(0))
+                .andExpect(jsonPath("$.rewardType").value("WAGE"))
+                .andExpect(jsonPath("$.reward").value(50000));
 
-        mockMvc.perform(get(BASE))
+        as(userId, get(BASE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].programTitle").value("직접 작성 공고"));
+                .andExpect(jsonPath("$[0].programTitle").value("직접 작성 공고"))
+                .andExpect(jsonPath("$[0].rewardType").value("WAGE"))
+                .andExpect(jsonPath("$[0].reward").value(50000));
 
         verifyNoInteractions(volunteerApiClient);
     }
@@ -134,8 +183,7 @@ class PostingApiTest {
     @Test
     void directPostingsCanCoexistWithoutProgramRegistrationNumber() throws Exception {
         for (String title : List.of("공고1", "공고2")) {
-            mockMvc.perform(post(BASE + "/" + adminId).contentType(MediaType.APPLICATION_JSON).content(recruitingBody(title)))
-                    .andExpect(status().isOk());
+            as(adminId, json(post(BASE), recruitingBody(title))).andExpect(status().isOk());
         }
 
         assertThat(postingRepository.count()).isEqualTo(2);
@@ -143,34 +191,42 @@ class PostingApiTest {
 
     @Test
     void userCanApplyToDirectPosting() throws Exception {
-        Post post = postingRepository.save(Post.builder()
+        Long postingId = savePost(Post.builder()
                 .programTitle("직접 작성 공고")
                 .recruitmentStartDate(LocalDate.now().minusDays(1))
                 .recruitmentEndDate(LocalDate.now().plusDays(1))
                 .recruitmentCapacity(1)
                 .build());
 
-        mockMvc.perform(post(BASE + "/" + userId + "/" + post.getId() + "/application"))
+        as(userId, post(BASE + "/" + postingId + "/application"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.applicantCount").value(1));
     }
 
     @Test
     void userCannotCreateDirectly() throws Exception {
-        mockMvc.perform(post(BASE + "/" + userId).contentType(MediaType.APPLICATION_JSON).content(recruitingBody("공고")))
-                .andExpect(status().isForbidden());
+        as(userId, json(post(BASE), recruitingBody("공고")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("권한이 없습니다."));
+
+        assertThat(postingRepository.count()).isZero();
+    }
+
+    @Test
+    void directCreateRequiresPositiveWage() throws Exception {
+        as(adminId, json(post(BASE), recruitingBody("공고").replace(",\"reward\":50000", "")))
+                .andExpect(status().isBadRequest());
+        as(adminId, json(post(BASE), recruitingBody("공고").replace("\"reward\":50000", "\"reward\":0")))
+                .andExpect(status().isBadRequest());
 
         assertThat(postingRepository.count()).isZero();
     }
 
     @Test
     void directCreateRejectsInvalidInput() throws Exception {
-        mockMvc.perform(post(BASE + "/" + adminId).contentType(MediaType.APPLICATION_JSON).content(recruitingBody(" ")))
-                .andExpect(status().isBadRequest());
-        mockMvc.perform(post(BASE + "/" + adminId).contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
-                .andExpect(status().isBadRequest());
-        mockMvc.perform(post(BASE + "/" + adminId).contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("공고", LocalDate.now().plusDays(1), LocalDate.now())))
+        as(adminId, json(post(BASE), recruitingBody(" "))).andExpect(status().isBadRequest());
+        as(adminId, json(post(BASE), IMPORT_BODY)).andExpect(status().isBadRequest());
+        as(adminId, json(post(BASE), createBody("공고", LocalDate.now().plusDays(1), LocalDate.now())))
                 .andExpect(status().isBadRequest());
 
         assertThat(postingRepository.count()).isZero();
@@ -179,21 +235,24 @@ class PostingApiTest {
     // ---- 1365 공고 등록 ----
 
     @Test
-    void adminCreatesPostingFrom1365() throws Exception {
-        given(volunteerApiClient.fetchDetail("3425935")).willReturn(Optional.of(recruitingPost().build()));
+    void adminImportsPostingFrom1365() throws Exception {
+        given(volunteerApiClient.fetchDetail("3425935"))
+                .willReturn(Optional.of(recruitingPost().activityStartTime("8").activityEndTime("16").reward(8).build()));
 
-        mockMvc.perform(post(BASE + "/" + adminId + "/external").contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
+        as(adminId, json(post(BASE + "/external"), IMPORT_BODY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.programTitle").value("환경 정화 봉사"))
-                .andExpect(jsonPath("$.applicantCount").value(0));
+                .andExpect(jsonPath("$.applicantCount").value(0))
+                .andExpect(jsonPath("$.rewardType").value("VOLUNTEER_HOURS"))
+                .andExpect(jsonPath("$.reward").value(8));
 
         assertThat(postingRepository.existsByProgramRegistrationNumber("3425935")).isTrue();
     }
 
     @Test
-    void userCannotCreateAndExternalApiIsNotCalled() throws Exception {
-        mockMvc.perform(post(BASE + "/" + userId + "/external").contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
+    void userCannotImportAndExternalApiIsNotCalled() throws Exception {
+        as(userId, json(post(BASE + "/external"), IMPORT_BODY))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("권한이 없습니다."));
 
@@ -201,43 +260,35 @@ class PostingApiTest {
     }
 
     @Test
-    void createRejectsDuplicate() throws Exception {
+    void importRejectsDuplicate() throws Exception {
         savePost(recruitingPost().build());
 
-        mockMvc.perform(post(BASE + "/" + adminId + "/external").contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
-                .andExpect(status().isConflict());
+        as(adminId, json(post(BASE + "/external"), IMPORT_BODY)).andExpect(status().isConflict());
 
         verifyNoInteractions(volunteerApiClient);
     }
 
     @Test
-    void createReturns404WhenMissingIn1365() throws Exception {
+    void importReturns404WhenMissingIn1365() throws Exception {
         given(volunteerApiClient.fetchDetail("3425935")).willReturn(Optional.empty());
 
-        mockMvc.perform(post(BASE + "/" + adminId + "/external").contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
-                .andExpect(status().isNotFound());
+        as(adminId, json(post(BASE + "/external"), IMPORT_BODY)).andExpect(status().isNotFound());
     }
 
     @Test
-    void createRejectsBlankProgramRegistrationNumber() throws Exception {
-        mockMvc.perform(post(BASE + "/" + adminId + "/external").contentType(MediaType.APPLICATION_JSON).content("{\"programRegistrationNumber\":\" \"}"))
+    void importRejectsBlankProgramRegistrationNumber() throws Exception {
+        as(adminId, json(post(BASE + "/external"), "{\"programRegistrationNumber\":\" \"}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void createPropagatesUpstreamFailure() throws Exception {
+    void importPropagatesUpstreamFailure() throws Exception {
         given(volunteerApiClient.fetchDetail("3425935"))
                 .willThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "1365 API 호출에 실패했습니다."));
 
-        mockMvc.perform(post(BASE + "/" + adminId + "/external").contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
+        as(adminId, json(post(BASE + "/external"), IMPORT_BODY))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.detail").value("1365 API 호출에 실패했습니다."));
-    }
-
-    @Test
-    void unknownUserIsNotFound() throws Exception {
-        mockMvc.perform(post(BASE + "/999999/external").contentType(MediaType.APPLICATION_JSON).content(IMPORT_BODY))
-                .andExpect(status().isNotFound());
     }
 
     // ---- 수정 ----
@@ -246,7 +297,7 @@ class PostingApiTest {
     void adminUpdatesPosting() throws Exception {
         Long postingId = savePost(recruitingPost().build());
 
-        mockMvc.perform(put(BASE + "/" + adminId + "/" + postingId).contentType(MediaType.APPLICATION_JSON).content(updateBody("수정된 제목")))
+        as(adminId, json(put(BASE + "/" + postingId), updateBody("수정된 제목")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.programTitle").value("수정된 제목"))
                 .andExpect(jsonPath("$.programStartDate").value("2026-12-01"))
@@ -256,11 +307,30 @@ class PostingApiTest {
     }
 
     @Test
+    void update1365PostingRecalculatesVolunteerHoursAndIgnoresWage() throws Exception {
+        Long postingId = savePost(recruitingPost().activityStartTime("8").activityEndTime("16").reward(8).build());
+
+        as(adminId, json(put(BASE + "/" + postingId), updateBody("시간 변경")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rewardType").value("VOLUNTEER_HOURS"))
+                .andExpect(jsonPath("$.reward").value(4));
+    }
+
+    @Test
+    void updateDirectPostingChangesWage() throws Exception {
+        Long postingId = savePost(Post.builder().programTitle("직접 작성 공고").reward(50000).build());
+
+        as(adminId, json(put(BASE + "/" + postingId), updateBody("임금 변경")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rewardType").value("WAGE"))
+                .andExpect(jsonPath("$.reward").value(70000));
+    }
+
+    @Test
     void userCannotUpdate() throws Exception {
         Long postingId = savePost(recruitingPost().build());
 
-        mockMvc.perform(put(BASE + "/" + userId + "/" + postingId).contentType(MediaType.APPLICATION_JSON).content(updateBody("x")))
-                .andExpect(status().isForbidden());
+        as(userId, json(put(BASE + "/" + postingId), updateBody("x"))).andExpect(status().isForbidden());
     }
 
     @Test
@@ -268,8 +338,7 @@ class PostingApiTest {
         Long postingId = savePost(recruitingPost().build());
         String body = updateBody("x").replace("\"recruitmentEndDate\":\"2026-11-30\"", "\"recruitmentEndDate\":\"2026-10-01\"");
 
-        mockMvc.perform(put(BASE + "/" + adminId + "/" + postingId).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest());
+        as(adminId, json(put(BASE + "/" + postingId), body)).andExpect(status().isBadRequest());
     }
 
     // ---- 삭제 ----
@@ -279,7 +348,7 @@ class PostingApiTest {
         Long postingId = savePost(recruitingPost().build());
         postingService.applyPosting(userId, postingId);
 
-        mockMvc.perform(delete(BASE + "/" + adminId + "/" + postingId))
+        as(adminId, delete(BASE + "/" + postingId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(postingId))
                 .andExpect(jsonPath("$.applicantCount").value(1));
@@ -292,8 +361,7 @@ class PostingApiTest {
     void userCannotDelete() throws Exception {
         Long postingId = savePost(recruitingPost().build());
 
-        mockMvc.perform(delete(BASE + "/" + userId + "/" + postingId))
-                .andExpect(status().isForbidden());
+        as(userId, delete(BASE + "/" + postingId)).andExpect(status().isForbidden());
 
         assertThat(postingRepository.existsById(postingId)).isTrue();
     }
@@ -301,44 +369,43 @@ class PostingApiTest {
     // ---- 조회 ----
 
     @Test
-    void listAndDetailAreAvailableWithoutRoleCheck() throws Exception {
+    void listShowsSummaryAndDetailShowsAll() throws Exception {
         savePost(recruitingPost().programRegistrationNumber("1").build());
-        Long latestId = savePost(recruitingPost().programRegistrationNumber("2").programContent("상세 내용").managerPhoneNumber("02-000-0000").build());
+        Long latestId = savePost(recruitingPost().programRegistrationNumber("2").programContent("상세 내용").build());
 
-        mockMvc.perform(get(BASE))
+        as(userId, get(BASE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(latestId))
                 .andExpect(jsonPath("$[0].programTitle").value("환경 정화 봉사"))
+                .andExpect(jsonPath("$[0].rewardType").value("VOLUNTEER_HOURS"))
                 .andExpect(jsonPath("$[0].programContent").doesNotExist())
-                .andExpect(jsonPath("$[0].managerPhoneNumber").doesNotExist())
                 .andExpect(jsonPath("$[0].applicantCount").doesNotExist());
 
-        mockMvc.perform(get(BASE + "/" + latestId))
+        as(adminId, get(BASE + "/" + latestId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.programRegistrationNumber").value("2"))
                 .andExpect(jsonPath("$.programContent").value("상세 내용"))
-                .andExpect(jsonPath("$.managerPhoneNumber").value("02-000-0000"))
                 .andExpect(jsonPath("$.applicantCount").value(0));
     }
 
     @Test
     void detailReturns404WhenMissing() throws Exception {
-        mockMvc.perform(get(BASE + "/999999"))
+        as(userId, get(BASE + "/999999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("공고를 찾을 수 없습니다."));
     }
 
     @Test
     void externalSearchRoutesToClientAndValidatesPaging() throws Exception {
-        given(volunteerApiClient.search(any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+        given(volunteerApiClient.search(any(), anyInt(), anyInt()))
                 .willReturn(List.of(PostingExternalDTO.builder().programRegistrationNumber("7").build()));
 
-        mockMvc.perform(get(BASE + "/external").param("keyword", "환경"))
+        as(adminId, get(BASE + "/external").param("keyword", "환경"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].programRegistrationNumber").value("7"));
 
-        mockMvc.perform(get(BASE + "/external").param("numOfRows", "101"))
+        as(adminId, get(BASE + "/external").param("numOfRows", "101"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -347,29 +414,29 @@ class PostingApiTest {
     @Test
     void userAppliesAndWithdrawsAndCanReapply() throws Exception {
         Long postingId = savePost(recruitingPost().build());
-        String url = BASE + "/" + userId + "/" + postingId + "/application";
+        String url = BASE + "/" + postingId + "/application";
 
-        mockMvc.perform(post(url)).andExpect(status().isOk()).andExpect(jsonPath("$.applicantCount").value(1));
-        mockMvc.perform(delete(url)).andExpect(status().isOk()).andExpect(jsonPath("$.applicantCount").value(0));
-        mockMvc.perform(post(url)).andExpect(status().isOk()).andExpect(jsonPath("$.applicantCount").value(1));
+        as(userId, post(url)).andExpect(status().isOk()).andExpect(jsonPath("$.applicantCount").value(1));
+        as(userId, delete(url)).andExpect(status().isOk()).andExpect(jsonPath("$.applicantCount").value(0));
+        as(userId, post(url)).andExpect(status().isOk()).andExpect(jsonPath("$.applicantCount").value(1));
     }
 
     @Test
     void adminCannotApplyOrWithdraw() throws Exception {
         Long postingId = savePost(recruitingPost().build());
-        String url = BASE + "/" + adminId + "/" + postingId + "/application";
+        String url = BASE + "/" + postingId + "/application";
 
-        mockMvc.perform(post(url)).andExpect(status().isForbidden());
-        mockMvc.perform(delete(url)).andExpect(status().isForbidden());
+        as(adminId, post(url)).andExpect(status().isForbidden());
+        as(adminId, delete(url)).andExpect(status().isForbidden());
     }
 
     @Test
     void duplicateApplyIsConflict() throws Exception {
         Long postingId = savePost(recruitingPost().build());
-        String url = BASE + "/" + userId + "/" + postingId + "/application";
+        String url = BASE + "/" + postingId + "/application";
 
-        mockMvc.perform(post(url)).andExpect(status().isOk());
-        mockMvc.perform(post(url)).andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("이미 신청한 공고입니다."));
+        as(userId, post(url)).andExpect(status().isOk());
+        as(userId, post(url)).andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("이미 신청한 공고입니다."));
     }
 
     @Test
@@ -379,28 +446,28 @@ class PostingApiTest {
         Long notStarted = savePost(recruitingPost().programRegistrationNumber("future").recruitmentStartDate(today.plusDays(1)).recruitmentEndDate(today.plusDays(5)).build());
         Long lastDay = savePost(recruitingPost().programRegistrationNumber("last").recruitmentEndDate(today).build());
 
-        mockMvc.perform(post(BASE + "/" + userId + "/" + ended + "/application")).andExpect(status().isConflict());
-        mockMvc.perform(post(BASE + "/" + userId + "/" + notStarted + "/application")).andExpect(status().isConflict());
-        mockMvc.perform(post(BASE + "/" + userId + "/" + lastDay + "/application")).andExpect(status().isOk());
+        as(userId, post(BASE + "/" + ended + "/application")).andExpect(status().isConflict());
+        as(userId, post(BASE + "/" + notStarted + "/application")).andExpect(status().isConflict());
+        as(userId, post(BASE + "/" + lastDay + "/application")).andExpect(status().isOk());
     }
 
     @Test
     void applyOverCapacityIsConflictButZeroCapacityMeansUnlimited() throws Exception {
         Long limited = savePost(recruitingPost().programRegistrationNumber("limited").recruitmentCapacity(1).build());
         Long unlimited = savePost(recruitingPost().programRegistrationNumber("unlimited").recruitmentCapacity(0).build());
-        postingService.applyPosting(saveUser(Role.USER), limited);
+        postingService.applyPosting(saveMember(Role.USER), limited);
 
-        mockMvc.perform(post(BASE + "/" + userId + "/" + limited + "/application"))
+        as(userId, post(BASE + "/" + limited + "/application"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("모집 인원이 마감되었습니다."));
-        mockMvc.perform(post(BASE + "/" + userId + "/" + unlimited + "/application")).andExpect(status().isOk());
+        as(userId, post(BASE + "/" + unlimited + "/application")).andExpect(status().isOk());
     }
 
     @Test
     void withdrawWithoutApplicationIsNotFound() throws Exception {
         Long postingId = savePost(recruitingPost().build());
 
-        mockMvc.perform(delete(BASE + "/" + userId + "/" + postingId + "/application"))
+        as(userId, delete(BASE + "/" + postingId + "/application"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("신청 내역이 없습니다."));
     }
@@ -410,15 +477,15 @@ class PostingApiTest {
         int capacity = 2;
         int applicants = 8;
         Long postingId = savePost(recruitingPost().recruitmentCapacity(capacity).build());
-        List<Long> userIds = new ArrayList<>();
+        List<Long> memberIds = new ArrayList<>();
         for (int i = 0; i < applicants; i++) {
-            userIds.add(saveUser(Role.USER));
+            memberIds.add(saveMember(Role.USER));
         }
 
         CountDownLatch start = new CountDownLatch(1);
         List<Future<Boolean>> results = new ArrayList<>();
         try (ExecutorService executor = Executors.newFixedThreadPool(applicants)) {
-            for (Long id : userIds) {
+            for (Long id : memberIds) {
                 results.add(executor.submit(() -> {
                     start.await();
                     try {

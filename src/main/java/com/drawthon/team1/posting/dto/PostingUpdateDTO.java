@@ -1,5 +1,6 @@
 package com.drawthon.team1.posting.dto;
 
+import com.drawthon.team1.posting.entity.WorkType;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -53,6 +54,17 @@ public class PostingUpdateDTO {
 
     @Size(max = 500)
     private String activityPlace;
+
+    /** 임금(원). 직접 작성한 공고만 반영하고, 생략하면 기존 값을 유지한다. 1365 공고는 활동 시간으로 다시 계산한다 */
+    @Positive
+    private Integer reward;
+
+    /** 활동 주소 (지역 필터에 사용). 생략하면 기존 값을 유지한다 */
+    @Size(max = 500)
+    private String address;
+
+    /** 작업 종류. 생략하면 기존 값을 유지한다 */
+    private WorkType workType;
 
     @AssertTrue(message = "봉사종료일자는 봉사시작일자보다 빠를 수 없습니다.")
     public boolean isProgramPeriodValid() {
