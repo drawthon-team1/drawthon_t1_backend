@@ -1,16 +1,22 @@
 spring:
   application:
     name: drawthon_backend
-
+    
   datasource:
-    url: jdbc:h2:file:./data/drawthon
+    url: jdbc:h2:mem:drawthon;MODE=MySQL;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password:
-
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  mvc:
+    problemdetails:
+      enabled: true
 
 server:
   servlet:
@@ -27,3 +33,11 @@ springdoc:
 
 app:
   frontend-base-url: http://localhost:5173
+      
+volunteer:
+  api:
+    base-url: https://apis.data.go.kr/1741000/volunteerPartcptnService
+    service-key: ${VOLUNTEER_API_SERVICE_KEY:}
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY:}
