@@ -114,7 +114,7 @@ class PostingApiTest {
     private static String createBody(String title, LocalDate recruitmentStart, LocalDate recruitmentEnd) {
         return """
                 {"programTitle":"%s","programContent":"내용","programStartDate":"2030-12-01","programEndDate":"2030-12-02",
-                 "recruitmentStartDate":"%s","recruitmentEndDate":"%s","recruitmentCapacity":3,"activityPlace":"서울","reward":50000}
+                 "recruitmentStartDate":"%s","recruitmentEndDate":"%s","recruitmentCapacity":3,"activityPlace":"서울","rewardType":"WAGE","reward":50000}
                 """.formatted(title, recruitmentStart, recruitmentEnd);
     }
 
@@ -127,7 +127,7 @@ class PostingApiTest {
                 {"programTitle":"%s","programContent":"내용","programStartDate":"2026-12-01","programEndDate":"2026-12-02",
                  "activityStartTime":"9","activityEndTime":"13",
                  "recruitmentStartDate":"2026-11-01","recruitmentEndDate":"2026-11-30","recruitmentCapacity":3,"activityPlace":"서울",
-                 "reward":70000}
+                 "rewardType":"WAGE","reward":70000}
                 """.formatted(title);
     }
 

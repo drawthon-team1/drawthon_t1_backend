@@ -112,7 +112,8 @@ public class PostingController {
     }
 
     @Operation(summary = "공고 직접 생성",
-            description = "1365와 연동되지 않은 공고를 작성해 저장한다. 리워드는 임금(rewardType = WAGE)이며 reward에 임금(원)을 필수로 넣는다. "
+            description = "1365와 연동되지 않은 공고를 작성해 저장한다. rewardType은 WAGE(유급) 또는 VOLUNTEER_HOURS(봉사시간)이며, "
+                    + "reward에는 각각 일당(원) 또는 총 봉사시간을 넣는다. "
                     + "프로그램등록번호와 등록 기관은 비어 있다.\n\n"
                     + "권한: ADMIN\n\n"
                     + "실패: 400 입력 오류(필수값 누락, 종료일이 시작일보다 빠름), 403 권한 없음")
