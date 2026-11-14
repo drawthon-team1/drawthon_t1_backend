@@ -10,11 +10,6 @@ import com.drawthon.team1.team.repository.TeamInvitationRepository;
 import com.drawthon.team1.team.repository.TeamMembershipRepository;
 import com.drawthon.team1.team.repository.TeamRepository;
 import com.drawthon.team1.team.web.dto.TeamResponses;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.WriterException;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -39,21 +32,18 @@ public class TeamService {
     private final TeamInvitationRepository invitationRepository;
     private final MemberRepository memberRepository;
     private final String frontendBaseUrl;
-    private final String backendBaseUrl;
 
     public TeamService(
             TeamRepository teamRepository,
             TeamMembershipRepository membershipRepository,
             TeamInvitationRepository invitationRepository,
             MemberRepository memberRepository,
-            @Value("${app.frontend-base-url:http://localhost:5173}") String frontendBaseUrl,
-            @Value("${app.backend-base-url:http://localhost:8080}") String backendBaseUrl) {
+            @Value("${app.frontend-base-url:http://localhost:5173}") String frontendBaseUrl) {
         this.teamRepository = teamRepository;
         this.membershipRepository = membershipRepository;
         this.invitationRepository = invitationRepository;
         this.memberRepository = memberRepository;
         this.frontendBaseUrl = removeTrailingSlash(frontendBaseUrl);
-        this.backendBaseUrl = removeTrailingSlash(backendBaseUrl);
     }
 
     public TeamResponses.TeamDetail createTeam(Long memberId, String name) {
@@ -128,30 +118,9 @@ public class TeamService {
         return new TeamResponses.JoinResult(team.getId(), team.getName(), true);
     }
 
-    @Transactional(readOnly = true)
-    public byte[] createInvitationQrCode(String token) {
-        TeamInvitation invitation = getValidInvitation(token);
-        String inviteUrl = createInviteUrl(invitation.getToken());
-
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            BitMatrix matrix = new QRCodeWriter().encode(inviteUrl, BarcodeFormat.QR_CODE, 320, 320);
-            MatrixToImageWriter.writeToStream(matrix, "PNG", output);
-            return output.toByteArray();
-        } catch (WriterException | IOException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "QR 코드를 생성하지 못했습니다.",
-                    exception);
-        }
-    }
-
     private TeamResponses.Invitation toInvitationResponse(TeamInvitation invitation) {
         String inviteUrl = createInviteUrl(invitation.getToken());
-        String qrCodeUrl = UriComponentsBuilder.fromUriString(backendBaseUrl)
-                .pathSegment("api", "team-invitations", invitation.getToken(), "qr")
-                .build()
-                .toUriString();
-        return TeamResponses.Invitation.from(invitation, inviteUrl, qrCodeUrl);
+        return TeamResponses.Invitation.from(invitation, inviteUrl);
     }
 
     private String createInviteUrl(String token) {

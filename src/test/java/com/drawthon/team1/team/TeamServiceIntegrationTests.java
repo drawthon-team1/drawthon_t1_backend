@@ -36,14 +36,6 @@ class TeamServiceIntegrationTests {
 
         TeamResponses.Invitation invitation = teamService.createInvitation(owner.getId(), created.id());
         assertTrue(invitation.inviteUrl().contains(invitation.token()));
-        assertTrue(invitation.qrCodeUrl().contains(invitation.token()));
-
-        byte[] qrCode = teamService.createInvitationQrCode(invitation.token());
-        assertTrue(qrCode.length > 100);
-        assertEquals((byte) 0x89, qrCode[0]);
-        assertEquals((byte) 0x50, qrCode[1]);
-        assertEquals((byte) 0x4E, qrCode[2]);
-        assertEquals((byte) 0x47, qrCode[3]);
 
         TeamResponses.InvitationPreview preview = teamService.getInvitationPreview(
                 guest.getId(), invitation.token());

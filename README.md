@@ -42,9 +42,13 @@ Java 25가 PATH에 없다면 실행 전에 `JAVA_HOME`을 설치된 JDK 25 경�
 }
 ```
 
-회원가입·로그인·내 정보 조회 응답은 `id`, `email`, `nickname`으로 통일합니다.
+회원가입·로그인·내 정보 조회 응답은 `id`, `email`, `nickname`, `role`로 통일합니다.
 Swagger의 Authorize에 세션 ID를 입력할 필요는 없습니다. 같은 브라우저와 호스트에서 호출하세요.
 POST 요청이 `403`이면 CSRF API를 다시 호출한 뒤 재시도하세요.
+
+일반 회원가입(`POST /api/auth/signup`)의 역할은 서버에서 항상 `USER`로 지정합니다.
+관리자 회원가입(`POST /api/auth/admin/signup`)은 로그인한 `ADMIN`만 호출할 수 있으며 생성되는 역할은 `ADMIN`입니다.
+최초 관리자는 DB에서 대상 회원의 `role`을 `ADMIN`으로 한 번 지정한 뒤 다시 로그인해야 합니다.
 
 ## 입력과 오류 응답
 
@@ -76,14 +80,13 @@ POST 요청이 `403`이면 CSRF API를 다시 호출한 뒤 재시도하세요.
    { "name": "드로우톤 1팀" }
    ```
 
-2. `POST /api/teams/{teamId}/invitations`: 팀장이 7일간 유효한 초대 링크와 QR 이미지 주소를 만듭니다.
+2. `POST /api/teams/{teamId}/invitations`: 팀장이 7일간 유효한 초대 링크를 만듭니다.
 3. `GET /api/team-invitations/{token}`: 로그인한 초대 대상자가 팀명, 팀장, 현재 인원을 확인합니다.
 4. `POST /api/team-invitations/{token}/accept`: 초대를 수락합니다. 이미 가입한 회원이 다시 호출해도 중복 가입되지 않습니다.
-5. `GET /api/team-invitations/{token}/qr`: 초대 링크가 담긴 PNG QR 이미지를 반환합니다.
-6. `GET /api/teams/{teamId}`: 팀원과 역할을 포함한 팀 현황을 조회합니다.
-7. `GET /api/teams`: 로그인 회원이 가입한 팀 목록을 조회합니다.
+5. `GET /api/teams/{teamId}`: 팀원과 역할을 포함한 팀 현황을 조회합니다.
+6. `GET /api/teams`: 로그인 회원이 가입한 팀 목록을 조회합니다.
 
-초대 링크의 프론트엔드 주소와 QR API의 백엔드 주소는 각각 `app.frontend-base-url`, `app.backend-base-url` 설정으로 변경할 수 있습니다.
+초대 링크의 프론트엔드 주소는 `app.frontend-base-url` 설정으로 변경할 수 있습니다.
 
 ### 팀 기능 버튼 테스트
 
@@ -91,7 +94,7 @@ POST 요청이 `403`이면 CSRF API를 다시 호출한 뒤 재시도하세요.
 
 1. **관리자 자동 가입 + 로그인**을 누릅니다. `admin1@abc.com` / `1234` 계정을 자동으로 사용합니다.
 2. 팀 이름을 입력하고 **팀 생성**을 누릅니다.
-3. **초대 링크 + QR 생성**으로 링크와 QR 이미지를 확인합니다.
+3. **초대 링크 생성**으로 링크를 확인합니다.
 4. **테스트 회원으로 수락**을 누르면 임시 회원 가입·로그인·초대 수락·관리자 재로그인을 자동으로 수행합니다.
 5. 팀 현황에서 추가된 회원을 확인합니다.
 

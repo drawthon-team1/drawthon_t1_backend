@@ -21,7 +21,6 @@
         .status.success { background: #e8f7ee; color: #15643a; }
         .status.error { background: #fdecec; color: #9b2525; }
         #invitePanel[hidden] { display: none; }
-        #qr { width: 220px; height: 220px; border: 1px solid #dde1ea; border-radius: 8px; background: white; }
         .link { overflow-wrap: anywhere; }
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
         th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e7ed; }
@@ -56,13 +55,12 @@
     <section class="card">
         <h2>3. 팀 초대 정보</h2>
         <div class="row">
-            <button id="inviteButton" type="button" disabled>초대 링크 + QR 생성</button>
+            <button id="inviteButton" type="button" disabled>초대 링크 생성</button>
             <button id="guestButton" class="secondary" type="button" disabled>테스트 회원으로 수락</button>
         </div>
         <div id="invitePanel" hidden>
             <p class="link">초대 링크: <a id="inviteLink" href="#" target="_blank" rel="noreferrer"></a></p>
-            <img id="qr" alt="팀 초대 QR 코드">
-            <p class="description">QR에는 위 초대 링크가 들어 있습니다. 프런트엔드의 <code>/invitations/{token}</code> 화면이 연결 대상입니다.</p>
+            <p class="description">프런트엔드의 <code>/invitations/{token}</code> 화면이 연결 대상입니다.</p>
         </div>
         <p id="inviteStatus" class="status">먼저 팀을 생성하세요.</p>
     </section>
@@ -174,7 +172,6 @@
         sessionStorage.setItem('teammaker.token', state.token);
         $('inviteLink').href = data.inviteUrl;
         $('inviteLink').textContent = data.inviteUrl;
-        $('qr').src = `${data.qrCodeUrl}?t=${Date.now()}`;
         $('invitePanel').hidden = false;
         setStatus('inviteStatus', `초대 생성 완료 · 만료 ${new Date(data.expiresAt).toLocaleString()}`, 'success');
         updateButtons();

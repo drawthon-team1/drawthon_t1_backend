@@ -1,6 +1,7 @@
 package com.drawthon.team1.team;
 
 import com.drawthon.team1.entity.Member;
+import com.drawthon.team1.entity.MemberRole;
 import com.drawthon.team1.sessionlogin.repository.MemberRepository;
 import com.drawthon.team1.team.domain.Team;
 import com.drawthon.team1.team.domain.TeamInvitation;
@@ -12,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,8 +79,7 @@ class TeamApiIntegrationTests {
                         .with(csrf()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.teamId").value(team.getId()))
-                .andExpect(jsonPath("$.inviteUrl").isNotEmpty())
-                .andExpect(jsonPath("$.qrCodeUrl").isNotEmpty());
+                .andExpect(jsonPath("$.inviteUrl").isNotEmpty());
 
         TeamInvitation invitation = invitationRepository.findAll().stream()
                 .filter(candidate -> candidate.getTeam().getId().equals(team.getId()))
@@ -107,10 +108,6 @@ class TeamApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(team.getId()));
 
-        mockMvc.perform(get("/api/team-invitations/{token}/qr", invitation.getToken())
-                        .with(authenticatedAs(guest.getId())))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.IMAGE_PNG));
     }
 
     private Member createMember(String prefix) {
@@ -119,7 +116,10 @@ class TeamApiIntegrationTests {
     }
 
     private RequestPostProcessor authenticatedAs(Long memberId) {
-        var authentication = UsernamePasswordAuthenticationToken.authenticated(memberId, null, List.of());
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(
+                memberId,
+                null,
+                List.of(new SimpleGrantedAuthority(MemberRole.USER.authority())));
         return authentication(authentication);
     }
 }

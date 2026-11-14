@@ -76,16 +76,14 @@ public final class TeamResponses {
             Long teamId,
             String teamName,
             String inviteUrl,
-            String qrCodeUrl,
             LocalDateTime expiresAt) {
 
-        public static Invitation from(TeamInvitation invitation, String inviteUrl, String qrCodeUrl) {
+        public static Invitation from(TeamInvitation invitation, String inviteUrl) {
             return new Invitation(
                     invitation.getToken(),
                     invitation.getTeam().getId(),
                     invitation.getTeam().getName(),
                     inviteUrl,
-                    qrCodeUrl,
                     invitation.getExpiresAt());
         }
     }

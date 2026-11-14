@@ -7,10 +7,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Team API", description = "팀 생성, 초대 및 조회 API")
+@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 public class TeamApiController {
 
     private final TeamService teamService;
@@ -57,7 +56,7 @@ public class TeamApiController {
         return teamService.getTeam(memberId, teamId);
     }
 
-    @Operation(summary = "팀 초대 링크 및 QR 코드 생성", description = "팀장만 생성할 수 있으며 링크는 7일간 유효합니다.")
+    @Operation(summary = "팀 초대 링크 생성", description = "팀장만 생성할 수 있으며 링크는 7일간 유효합니다.")
     @PostMapping("/teams/{teamId}/invitations")
     @ResponseStatus(HttpStatus.CREATED)
     public TeamResponses.Invitation createInvitation(
@@ -80,14 +79,5 @@ public class TeamApiController {
             @Parameter(hidden = true) @AuthenticationPrincipal Long memberId,
             @PathVariable String token) {
         return teamService.acceptInvitation(memberId, token);
-    }
-
-    @Operation(summary = "초대 QR 코드 조회")
-    @GetMapping(value = "/team-invitations/{token}/qr", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getInvitationQrCode(@PathVariable String token) {
-        return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_PNG)
-                .cacheControl(CacheControl.noStore())
-                .body(teamService.createInvitationQrCode(token));
     }
 }
