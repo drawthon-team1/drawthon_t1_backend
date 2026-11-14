@@ -17,15 +17,8 @@ public class PostingExternalDTO {
     private final String programStartDate;
     private final String programEndDate;
     private final String recruitmentStatus;
-    private final String activityStartTime;
-    private final String activityEndTime;
     private final String recruitmentStartDate;
     private final String recruitmentEndDate;
     private final String activityPlace;
-    private final String serviceCategoryCode;
-    private final String adultParticipationAllowed;
-    private final String youthParticipationAllowed;
-    private final String provinceCode;
-    private final String districtCode;
     private final String programDetailUrl;
 }

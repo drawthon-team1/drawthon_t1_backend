@@ -37,6 +37,8 @@ app:
 volunteer:
   api:
     base-url: https://apis.data.go.kr/1741000/volunteerPartcptnService
+    # 1365 검색에 항상 붙이는 상위분야코드. 0600 = 농어촌 봉사 (따옴표가 없으면 YAML이 8진수 숫자로 읽음)
+    upper-category-code: "0600"
     service-key: ${VOLUNTEER_API_SERVICE_KEY:}
 
 kakao:

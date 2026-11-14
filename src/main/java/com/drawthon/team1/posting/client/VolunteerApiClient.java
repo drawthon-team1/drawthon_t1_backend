@@ -2,6 +2,7 @@ package com.drawthon.team1.posting.client;
 
 import com.drawthon.team1.posting.dto.PostingExternalDTO;
 import com.drawthon.team1.posting.entity.Post;
+import com.drawthon.team1.posting.entity.WorkType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -53,9 +54,12 @@ public class VolunteerApiClient {
 
     private final RestClient restClient;
     private final String serviceKey;
+    /** 1365 검색에 항상 붙이는 상위분야코드. 0600 = 농어촌 봉사. 비우면 분야 제한 없이 검색한다 */
+    private final String upperCategoryCode;
 
     public VolunteerApiClient(@Value("${volunteer.api.base-url}") String baseUrl,
-                              @Value("${volunteer.api.service-key}") String serviceKey) {
+                              @Value("${volunteer.api.service-key}") String serviceKey,
+                              @Value("${volunteer.api.upper-category-code:0600}") String upperCategoryCode) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(3));
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
@@ -65,6 +69,7 @@ public class VolunteerApiClient {
                 .requestFactory(requestFactory)
                 .build();
         this.serviceKey = serviceKey;
+        this.upperCategoryCode = upperCategoryCode;
     }
 
     /**
@@ -76,10 +81,14 @@ public class VolunteerApiClient {
         return items.stream().findFirst().map(item -> toPost(programRegisterNo, item));
     }
 
+    /** 설정한 상위분야(기본 0600 농어촌 봉사) 안에서만 검색한다. */
     public List<PostingExternalDTO> search(String keyword, int pageNo, int numOfRows) {
         Map<String, Object> params = new HashMap<>();
         params.put("pageNo", pageNo);
         params.put("numOfRows", numOfRows);
+        if (StringUtils.hasText(upperCategoryCode)) {
+            params.put("upperClCode", upperCategoryCode.trim());
+        }
         if (StringUtils.hasText(keyword)) {
             params.put("keyword", keyword);
             params.put("schCateGu", "all");
@@ -182,7 +191,6 @@ public class VolunteerApiClient {
                     .programRegistrationNumber(programRegistrationNumber)
                     .programTitle(item.get("progrmSj"))
                     .programContent(item.get("progrmCn"))
-                    .recruitmentStatus(item.get("progrmSttusSe"))
                     .programStartDate(toDate(item.get("progrmBgnde")))
                     .programEndDate(toDate(item.get("progrmEndde")))
                     .activityStartTime(item.get("actBeginTm"))
@@ -190,30 +198,11 @@ public class VolunteerApiClient {
                     .recruitmentStartDate(toDate(item.get("noticeBgnde")))
                     .recruitmentEndDate(toDate(item.get("noticeEndde")))
                     .recruitmentCapacity(toInteger(item.get("rcritNmpr")))
-                    .externalApplicantCount(toInteger(item.get("appTotal")))
-                    .activityWeekdays(item.get("actWkdy"))
-                    .serviceCategoryCode(item.get("srvcClCode"))
-                    .adultParticipationAllowed(item.get("adultPosblAt"))
-                    .youthParticipationAllowed(item.get("yngbgsPosblAt"))
-                    .groupParticipationAllowed(item.get("grpPosblAt"))
-                    .publicOfficialParticipationAllowed(item.get("pbsvntPosblAt"))
-                    .familyParticipationAllowed(item.get("familyPosblAt"))
-                    .hostOrganizationName(item.get("mnnstNm"))
                     .registeringOrganizationName(item.get("nanmmbyNm"))
                     .activityPlace(item.get("actPlace"))
-                    .managerName(item.get("nanmmbyNmAdmn"))
-                    .managerPhoneNumber(item.get("telno"))
-                    .managerFaxNumber(item.get("fxnum"))
-                    .managerAddress(item.get("postAdres"))
-                    .managerEmail(item.get("email"))
-                    .provinceCode(item.get("sidoCd"))
-                    .districtCode(item.get("gugunCd"))
-                    .activityAddress1(item.get("areaAddress1"))
-                    .activityAddress2(item.get("areaAddress2"))
-                    .activityAddress3(item.get("areaAddress3"))
-                    .activityCoordinates1(item.get("areaLalo1"))
-                    .activityCoordinates2(item.get("areaLalo2"))
-                    .activityCoordinates3(item.get("areaLalo3"))
+                    .reward(Post.volunteerHours(item.get("actBeginTm"), item.get("actEndTm")))
+                    .address(Post.normalizeAddress(item.get("areaAddress1")))
+                    .workType(WorkType.infer(item.get("progrmSj"), item.get("progrmCn")))
                     .build();
         } catch (DateTimeParseException | NumberFormatException e) {
             log.warn("1365 API item conversion failed: programRegistrationNumber={}, cause={}", programRegistrationNumber, e.getMessage());
@@ -229,16 +218,9 @@ public class VolunteerApiClient {
                 .programStartDate(item.get("progrmBgnde"))
                 .programEndDate(item.get("progrmEndde"))
                 .recruitmentStatus(item.get("progrmSttusSe"))
-                .activityStartTime(item.get("actBeginTm"))
-                .activityEndTime(item.get("actEndTm"))
                 .recruitmentStartDate(item.get("noticeBgnde"))
                 .recruitmentEndDate(item.get("noticeEndde"))
                 .activityPlace(item.get("actPlace"))
-                .serviceCategoryCode(item.get("srvcClCode"))
-                .adultParticipationAllowed(item.get("adultPosblAt"))
-                .youthParticipationAllowed(item.get("yngbgsPosblAt"))
-                .provinceCode(item.get("sidoCd"))
-                .districtCode(item.get("gugunCd"))
                 .programDetailUrl(item.get("url"))
                 .build();
     }

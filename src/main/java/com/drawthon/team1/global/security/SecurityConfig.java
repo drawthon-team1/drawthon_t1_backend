@@ -43,9 +43,12 @@ public class SecurityConfig {
                                 , "/swagger-ui.html"
                                 , "/v3/api-docs/**"
                                 , "/v3/api-docs.yaml"
-                                ,"/api/map/**").permitAll()
+                                ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        // 지도 공고 조회는 비로그인도 허용한다.
+                        // 주소 변환(/api/map/geocode)은 카카오 API 키 사용량을 소모하므로 로그인한 사용자만 허용한다.
+                        .requestMatchers(HttpMethod.GET, "/api/map/notices", "/api/map/notices/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> {
