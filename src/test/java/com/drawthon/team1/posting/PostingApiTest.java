@@ -1,7 +1,7 @@
 package com.drawthon.team1.posting;
 
 import com.drawthon.team1.entity.Member;
-import com.drawthon.team1.entity.Role;
+import com.drawthon.team1.entity.MemberRole;
 import com.drawthon.team1.posting.client.VolunteerApiClient;
 import com.drawthon.team1.posting.dto.PostingExternalDTO;
 import com.drawthon.team1.posting.entity.Post;
@@ -70,8 +70,8 @@ class PostingApiTest {
 
     @BeforeEach
     void setUp() {
-        adminId = saveMember(Role.ADMIN);
-        userId = saveMember(Role.USER);
+        adminId = saveMember(MemberRole.ADMIN);
+        userId = saveMember(MemberRole.USER);
     }
 
     @AfterEach
@@ -81,7 +81,7 @@ class PostingApiTest {
         memberRepository.deleteAll();
     }
 
-    private Long saveMember(Role role) {
+    private Long saveMember(MemberRole role) {
         return memberRepository.save(Member.create(UUID.randomUUID() + "@test.com", "hash", "테스터", role)).getId();
     }
 
@@ -455,7 +455,7 @@ class PostingApiTest {
     void applyOverCapacityIsConflictButZeroCapacityMeansUnlimited() throws Exception {
         Long limited = savePost(recruitingPost().programRegistrationNumber("limited").recruitmentCapacity(1).build());
         Long unlimited = savePost(recruitingPost().programRegistrationNumber("unlimited").recruitmentCapacity(0).build());
-        postingService.applyPosting(saveMember(Role.USER), limited);
+        postingService.applyPosting(saveMember(MemberRole.USER), limited);
 
         as(userId, post(BASE + "/" + limited + "/application"))
                 .andExpect(status().isConflict())
@@ -479,7 +479,7 @@ class PostingApiTest {
         Long postingId = savePost(recruitingPost().recruitmentCapacity(capacity).build());
         List<Long> memberIds = new ArrayList<>();
         for (int i = 0; i < applicants; i++) {
-            memberIds.add(saveMember(Role.USER));
+            memberIds.add(saveMember(MemberRole.USER));
         }
 
         CountDownLatch start = new CountDownLatch(1);

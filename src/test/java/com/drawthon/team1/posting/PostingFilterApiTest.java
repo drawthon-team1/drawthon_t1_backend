@@ -1,7 +1,7 @@
 package com.drawthon.team1.posting;
 
 import com.drawthon.team1.entity.Member;
-import com.drawthon.team1.entity.Role;
+import com.drawthon.team1.entity.MemberRole;
 import com.drawthon.team1.posting.client.VolunteerApiClient;
 import com.drawthon.team1.posting.entity.Post;
 import com.drawthon.team1.posting.entity.PostApplication;
@@ -61,7 +61,7 @@ class PostingFilterApiTest {
     @BeforeEach
     void setUp() {
         LocalDate today = LocalDate.now();
-        Member member = memberRepository.save(Member.create(UUID.randomUUID() + "@test.com", "hash", "테스터", Role.USER));
+        Member member = memberRepository.save(Member.create(UUID.randomUUID() + "@test.com", "hash", "테스터", MemberRole.USER));
         memberId = member.getId();
 
         postingRepository.save(Post.builder().programRegistrationNumber("A1").programTitle(HOURS)

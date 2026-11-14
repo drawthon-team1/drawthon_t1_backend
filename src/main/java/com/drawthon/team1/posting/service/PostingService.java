@@ -1,7 +1,7 @@
 package com.drawthon.team1.posting.service;
 
 import com.drawthon.team1.entity.Member;
-import com.drawthon.team1.entity.Role;
+import com.drawthon.team1.entity.MemberRole;
 import com.drawthon.team1.posting.client.VolunteerApiClient;
 import com.drawthon.team1.posting.dto.PostingCreateDTO;
 import com.drawthon.team1.posting.dto.PostingExternalDTO;
@@ -87,7 +87,7 @@ public class PostingService {
 
     @Transactional
     public PostingResponseDTO createPosting(Long memberId, PostingCreateDTO postingCreateDTO) {
-        requireRole(memberId, Role.ADMIN);
+        requireRole(memberId, MemberRole.ADMIN);
 
         return PostingResponseDTO.from(postingRepository.save(Post.from(postingCreateDTO)), 0);
     }
@@ -96,7 +96,7 @@ public class PostingService {
      * 외부 api 호출 동안 DB 커넥션을 점유하지 않도록 트랜잭션을 걸지 않는다.
      */
     public PostingResponseDTO importPosting(Long memberId, PostingImportDTO postingImportDTO) {
-        requireRole(memberId, Role.ADMIN);
+        requireRole(memberId, MemberRole.ADMIN);
 
         String programRegistrationNumber = postingImportDTO.getProgramRegistrationNumber();
         if (postingRepository.existsByProgramRegistrationNumber(programRegistrationNumber)) {
@@ -114,7 +114,7 @@ public class PostingService {
 
     @Transactional
     public PostingResponseDTO updatePosting(Long memberId, Long postingId, PostingUpdateDTO postingUpdateDTO) {
-        requireRole(memberId, Role.ADMIN);
+        requireRole(memberId, MemberRole.ADMIN);
 
         Post post = postingRepository.findById(postingId).orElseThrow(PostingService::postingNotFound);
         post.update(postingUpdateDTO);
@@ -123,7 +123,7 @@ public class PostingService {
 
     @Transactional
     public PostingResponseDTO deletePosting(Long memberId, Long postingId) {
-        requireRole(memberId, Role.ADMIN);
+        requireRole(memberId, MemberRole.ADMIN);
 
         Post post = postingRepository.findByIdForUpdate(postingId).orElseThrow(PostingService::postingNotFound);
         PostingResponseDTO response = toResponse(post);
@@ -134,7 +134,7 @@ public class PostingService {
 
     @Transactional
     public PostingResponseDTO applyPosting(Long memberId, Long postingId) {
-        Member member = requireRole(memberId, Role.USER);
+        Member member = requireRole(memberId, MemberRole.USER);
 
         Post post = postingRepository.findByIdForUpdate(postingId).orElseThrow(PostingService::postingNotFound);
         if (postApplicationRepository.existsByPostIdAndMemberId(postingId, memberId)) {
@@ -153,7 +153,7 @@ public class PostingService {
 
     @Transactional
     public PostingResponseDTO withdrawPosting(Long memberId, Long postingId) {
-        requireRole(memberId, Role.USER);
+        requireRole(memberId, MemberRole.USER);
 
         Post post = postingRepository.findById(postingId).orElseThrow(PostingService::postingNotFound);
         PostApplication application = postApplicationRepository.findByPostIdAndMemberId(postingId, memberId)
@@ -162,7 +162,7 @@ public class PostingService {
         return toResponse(post);
     }
 
-    private Member requireRole(Long memberId, Role role) {
+    private Member requireRole(Long memberId, MemberRole role) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "회원 정보를 찾을 수 없습니다. 다시 로그인해 주세요."));
         if (member.getRole() != role) {

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>팀 메이커 API 테스트</title>
+    <style>
+        :root { color-scheme: light; font-family: system-ui, sans-serif; }
+        body { max-width: 980px; margin: 0 auto; padding: 32px 20px 60px; background: #f6f7fb; color: #202431; }
+        h1 { margin-bottom: 8px; }
+        h2 { font-size: 18px; margin-top: 0; }
+        .description { color: #636b7c; margin-top: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+        .card { background: white; border: 1px solid #dde1ea; border-radius: 14px; padding: 20px; margin-top: 16px; box-shadow: 0 4px 18px #2024310d; }
+        .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        input { box-sizing: border-box; min-width: 220px; flex: 1; padding: 10px 12px; border: 1px solid #cbd1dc; border-radius: 8px; }
+        button { border: 0; border-radius: 8px; padding: 10px 14px; background: #4f46e5; color: white; cursor: pointer; font-weight: 650; }
+        button.secondary { background: #e8eaf2; color: #34394a; }
+        button:disabled { opacity: .45; cursor: not-allowed; }
+        .status { padding: 10px 12px; border-radius: 8px; background: #eff2f8; white-space: pre-wrap; }
+        .status.success { background: #e8f7ee; color: #15643a; }
+        .status.error { background: #fdecec; color: #9b2525; }
+        #invitePanel[hidden] { display: none; }
+        .link { overflow-wrap: anywhere; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e7ed; }
+        pre { max-height: 260px; overflow: auto; padding: 14px; color: #d8dee9; background: #222733; border-radius: 8px; font-size: 12px; }
+        code { background: #eef0f5; border-radius: 4px; padding: 2px 5px; }
+    </style>
+</head>
+<body>
+<h1>팀 메이커 API 테스트</h1>
+<p class="description">버튼만 눌러 팀 생성 → 초대 생성 → 다른 회원 수락 → 팀원 조회 흐름을 확인합니다.</p>
+
+<section class="card">
+    <h2>1. 관리자 로그인</h2>
+    <p><code>admin1@abc.com</code> / <code>1234</code> 계정을 없으면 가입하고 바로 로그인합니다.</p>
+    <div class="row">
+        <button id="loginButton" type="button">관리자 자동 가입 + 로그인</button>
+        <button id="listButton" class="secondary" type="button" disabled>내 팀 목록</button>
+    </div>
+    <p id="loginStatus" class="status">로그인이 필요합니다.</p>
+</section>
+
+<div class="grid">
+    <section class="card">
+        <h2>2. 팀 생성</h2>
+        <div class="row">
+            <input id="teamName" value="드로우톤 테스트팀" maxlength="50" aria-label="팀 이름">
+            <button id="createTeamButton" type="button" disabled>팀 생성</button>
+        </div>
+        <p id="teamStatus" class="status">생성된 팀이 없습니다.</p>
+    </section>
+
+    <section class="card">
+        <h2>3. 팀 초대 정보</h2>
+        <div class="row">
+            <button id="inviteButton" type="button" disabled>초대 링크 생성</button>
+            <button id="guestButton" class="secondary" type="button" disabled>테스트 회원으로 수락</button>
+        </div>
+        <div id="invitePanel" hidden>
+            <p class="link">초대 링크: <a id="inviteLink" href="#" target="_blank" rel="noreferrer"></a></p>
+            <p class="description">프런트엔드의 <code>/invitations/{token}</code> 화면이 연결 대상입니다.</p>
+        </div>
+        <p id="inviteStatus" class="status">먼저 팀을 생성하세요.</p>
+    </section>
+</div>
+
+<section class="card">
+    <h2>4. 팀 현황</h2>
+    <button id="refreshButton" type="button" disabled>팀원 목록 새로고침</button>
+    <p id="summary" class="status">조회할 팀이 없습니다.</p>
+    <table>
+        <thead><tr><th>ID</th><th>닉네임</th><th>역할</th><th>가입 시각</th></tr></thead>
+        <tbody id="members"><tr><td colspan="4">팀원이 없습니다.</td></tr></tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>API 요청 기록</h2>
+    <pre id="log" aria-live="polite">테스트를 시작하세요.</pre>
+</section>
+
+<script>
+    const ADMIN = { email: 'admin1@abc.com', password: '1234', nickname: '관리자1' };
+    const state = {
+        teamId: sessionStorage.getItem('teammaker.teamId'),
+        token: sessionStorage.getItem('teammaker.token')
+    };
+
+    const $ = id => document.getElementById(id);
+    const logLines = [];
+
+    function log(message, data) {
+        const time = new Date().toLocaleTimeString();
+        logLines.unshift(`[${time}] ${message}${data === undefined ? '' : `\n${JSON.stringify(data, null, 2)}`}`);
+        $('log').textContent = logLines.slice(0, 30).join('\n\n');
+    }
+
+    function setStatus(id, message, type = '') {
+        const element = $(id);
+        element.textContent = message;
+        element.className = `status ${type}`.trim();
+    }
+
+    async function csrfHeader() {
+        const response = await fetch('/api/auth/csrf', { credentials: 'same-origin' });
+        if (!response.ok) throw new Error(`CSRF 토큰 발급 실패 (HTTP ${response.status})`);
+        const csrf = await response.json();
+        return { [csrf.headerName]: csrf.token };
+    }
+
+    async function api(path, { method = 'GET', body, allow = [] } = {}) {
+        const headers = method === 'GET' ? {} : await csrfHeader();
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        const response = await fetch(path, {
+            method,
+            headers,
+            credentials: 'same-origin',
+            body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        const text = await response.text();
+        let data = text;
+        if (text) {
+            try { data = JSON.parse(text); } catch { /* 이미지 외 응답은 텍스트로 유지 */ }
+        }
+        log(`${method} ${path} → HTTP ${response.status}`, data || undefined);
+        if (!response.ok && !allow.includes(response.status)) {
+            throw new Error(data?.message || `${method} ${path} 실패 (HTTP ${response.status})`);
+        }
+        return { response, data };
+    }
+
+    async function loginAdmin() {
+        await api('/api/auth/signup', { method: 'POST', body: ADMIN, allow: [409] });
+        const { data } = await api('/api/auth/login', {
+            method: 'POST',
+            body: { email: ADMIN.email, password: ADMIN.password }
+        });
+        setStatus('loginStatus', `${data.nickname} 로그인 완료 (${data.email})`, 'success');
+        $('createTeamButton').disabled = false;
+        $('listButton').disabled = false;
+        updateButtons();
+        return data;
+    }
+
+    function updateButtons() {
+        const hasTeam = Boolean(state.teamId);
+        const hasInvite = Boolean(state.token);
+        $('inviteButton').disabled = !hasTeam;
+        $('refreshButton').disabled = !hasTeam;
+        $('guestButton').disabled = !hasInvite;
+    }
+
+    async function createTeam() {
+        const name = $('teamName').value.trim();
+        if (!name) throw new Error('팀 이름을 입력하세요.');
+        const { data } = await api('/api/teams', { method: 'POST', body: { name } });
+        state.teamId = String(data.id);
+        state.token = null;
+        sessionStorage.setItem('teammaker.teamId', state.teamId);
+        sessionStorage.removeItem('teammaker.token');
+        $('invitePanel').hidden = true;
+        setStatus('teamStatus', `팀 생성 완료: ${data.name} (ID ${data.id})`, 'success');
+        updateButtons();
+        renderTeam(data);
+    }
+
+    async function createInvitation() {
+        const { data } = await api(`/api/teams/${state.teamId}/invitations`, { method: 'POST' });
+        state.token = data.token;
+        sessionStorage.setItem('teammaker.token', state.token);
+        $('inviteLink').href = data.inviteUrl;
+        $('inviteLink').textContent = data.inviteUrl;
+        $('invitePanel').hidden = false;
+        setStatus('inviteStatus', `초대 생성 완료 · 만료 ${new Date(data.expiresAt).toLocaleString()}`, 'success');
+        updateButtons();
+    }
+
+    async function acceptAsGuest() {
+        const suffix = Date.now();
+        const guest = { email: `guest${suffix}@abc.com`, password: '1234', nickname: `초대회원${String(suffix).slice(-4)}` };
+        setStatus('inviteStatus', `${guest.nickname} 계정으로 초대 수락 중...`);
+        try {
+            await api('/api/auth/signup', { method: 'POST', body: guest });
+            await api('/api/auth/login', { method: 'POST', body: { email: guest.email, password: guest.password } });
+            const { data } = await api(`/api/team-invitations/${state.token}/accept`, { method: 'POST' });
+            setStatus('inviteStatus', `${guest.nickname} 초대 수락 완료 (joined=${data.joined})`, 'success');
+        } finally {
+            await loginAdmin();
+        }
+        await refreshTeam();
+    }
+
+    async function refreshTeam() {
+        const { data } = await api(`/api/teams/${state.teamId}`);
+        renderTeam(data);
+    }
+
+    function renderTeam(team) {
+        setStatus('summary', `${team.name} · 팀장 ${team.ownerNickname} · 총 ${team.memberCount}명`, 'success');
+        $('members').innerHTML = team.members.map(member => `
+            <tr>
+                <td>${member.memberId}</td>
+                <td>${escapeHtml(member.nickname)}</td>
+                <td>${member.role}</td>
+                <td>${new Date(member.joinedAt).toLocaleString()}</td>
+            </tr>`).join('');
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+    }
+
+    async function run(button, action) {
+        button.disabled = true;
+        try {
+            await action();
+        } catch (error) {
+            log('오류', { message: error.message });
+            setStatus('loginStatus', `오류: ${error.message}`, 'error');
+        } finally {
+            updateButtons();
+            if (button.id === 'loginButton') button.disabled = false;
+        }
+    }
+
+    $('loginButton').addEventListener('click', event => run(event.currentTarget, loginAdmin));
+    $('createTeamButton').addEventListener('click', event => run(event.currentTarget, createTeam));
+    $('inviteButton').addEventListener('click', event => run(event.currentTarget, createInvitation));
+    $('guestButton').addEventListener('click', event => run(event.currentTarget, acceptAsGuest));
+    $('refreshButton').addEventListener('click', event => run(event.currentTarget, refreshTeam));
+    $('listButton').addEventListener('click', event => run(event.currentTarget, async () => {
+        const { data } = await api('/api/teams');
+        setStatus('teamStatus', data.length ? data.map(team => `#${team.id} ${team.name} (${team.memberCount}명)`).join('\n') : '가입한 팀이 없습니다.', 'success');
+    }));
+
+    updateButtons();
+</script>
+</body>
+</html>

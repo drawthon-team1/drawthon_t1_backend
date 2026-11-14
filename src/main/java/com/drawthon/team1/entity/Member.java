@@ -2,6 +2,7 @@ package com.drawthon.team1.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "member", uniqueConstraints = {
@@ -28,18 +29,23 @@ public class Member extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private Role role;
+    @ColumnDefault("'USER'")
+    private MemberRole role = MemberRole.USER;
 
     protected Member() { } // JPA용
 
-    private Member(String email, String pwHash, String nickname, Role role) {
+    private Member(String email, String pwHash, String nickname, MemberRole role) {
         this.email = email;
         this.pwHash = pwHash;
         this.nickname = nickname;
         this.role = role;
     }
 
-    public static Member create(String email, String pwHash, String nickname, Role role){
+    public static Member create(String email, String pwHash, String nickname){
+        return create(email, pwHash, nickname, MemberRole.USER);
+    }
+
+    public static Member create(String email, String pwHash, String nickname, MemberRole role) {
         return new Member(email, pwHash, nickname, role);
     }
 }
