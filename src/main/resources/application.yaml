@@ -30,6 +30,9 @@ springdoc:
   swagger-ui:
     csrf:
       enabled: true
+
+app:
+  frontend-base-url: http://localhost:5173
       
 volunteer:
   api:

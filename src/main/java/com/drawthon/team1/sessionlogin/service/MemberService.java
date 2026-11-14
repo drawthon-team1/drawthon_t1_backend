@@ -1,6 +1,7 @@
 package com.drawthon.team1.sessionlogin.service;
 
 import com.drawthon.team1.entity.Member;
+import com.drawthon.team1.entity.MemberRole;
 import com.drawthon.team1.sessionlogin.repository.MemberRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,14 @@ public class MemberService {
     }
 
     public Member signup(String email, String rawPassword, String nickname) {
+        return signup(email, rawPassword, nickname, MemberRole.USER);
+    }
+
+    public Member signupAdmin(String email, String rawPassword, String nickname) {
+        return signup(email, rawPassword, nickname, MemberRole.ADMIN);
+    }
+
+    private Member signup(String email, String rawPassword, String nickname, MemberRole role) {
         if (email == null || email.isBlank()) throw new IllegalArgumentException("이메일은 필수입니다.");
         if (rawPassword == null || rawPassword.isBlank()) throw new IllegalArgumentException("비밀번호는 필수입니다.");
         if (nickname == null || nickname.isBlank()) throw new IllegalArgumentException("닉네임은 필수입니다.");
@@ -37,7 +46,7 @@ public class MemberService {
         }
 
         String hash = passwordEncoder.encode(rawPassword);
-        Member member = Member.create(normalizedEmail, hash, nickname.trim());
+        Member member = Member.create(normalizedEmail, hash, nickname.trim(), role);
 
         return memberRepository.save(member);
     }
