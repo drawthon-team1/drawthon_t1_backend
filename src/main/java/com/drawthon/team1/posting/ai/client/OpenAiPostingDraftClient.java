@@ -3,6 +3,7 @@ package com.drawthon.team1.posting.ai.client;
 import com.drawthon.team1.posting.ai.dto.AiPostingDraft;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.core.JsonSchemaLocalValidation;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.StructuredResponse;
 import com.openai.models.responses.StructuredResponseCreateParams;
@@ -38,14 +39,13 @@ public class OpenAiPostingDraftClient implements PostingDraftGenerator {
                 .maxRetries(2)
                 .build();
 
-        StructuredResponseCreateParams<AiPostingDraft> params = ResponseCreateParams.builder()
-                .model(model)
-                .instructions(systemInstructions())
-                .input(description)
-                .text(AiPostingDraft.class)
-                .build();
-
         try {
+            StructuredResponseCreateParams<AiPostingDraft> params = ResponseCreateParams.builder()
+                    .model(model)
+                    .instructions(systemInstructions())
+                    .input(description)
+                    .text(AiPostingDraft.class, JsonSchemaLocalValidation.NO)
+                    .build();
             StructuredResponse<AiPostingDraft> response = client.responses().create(params);
             return response.output().stream()
                     .flatMap(item -> item.message().stream())

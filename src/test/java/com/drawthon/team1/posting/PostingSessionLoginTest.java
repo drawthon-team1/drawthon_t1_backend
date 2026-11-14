@@ -64,6 +64,12 @@ class PostingSessionLoginTest {
         mockMvc.perform(post("/api/v1/posting").session(session).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(POSTING))
                 .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/posting/ai/draft").session(session).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"description\":\"사과 수확 일손을 구합니다.\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("접근 권한이 없습니다."));
     }
 
     @Test

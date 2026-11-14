@@ -13,6 +13,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -45,7 +46,8 @@ public class SecurityConfig {
                                 , "/v3/api-docs.yaml"
                                 ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/signup", "/api/auth/admin/signup", "/api/auth/login").permitAll()
                         // 지도 공고 조회는 비로그인도 허용한다.
                         // 주소 변환(/api/map/geocode)은 카카오 API 키 사용량을 소모하므로 로그인한 사용자만 허용한다.
                         .requestMatchers(HttpMethod.GET, "/api/map/notices", "/api/map/notices/**").permitAll()
@@ -59,7 +61,10 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, exception) -> {
                             response.setStatus(403);
                             response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"message\":\"접근 권한 또는 CSRF 토큰을 확인해 주세요.\"}");
+                            String message = exception instanceof CsrfException
+                                    ? "CSRF 토큰이 누락되었거나 유효하지 않습니다."
+                                    : "접근 권한이 없습니다.";
+                            response.getWriter().write("{\"message\":\"" + message + "\"}");
                         }));
         return http.build();
     }
