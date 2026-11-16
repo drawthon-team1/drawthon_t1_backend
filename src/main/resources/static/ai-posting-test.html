@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI 공고 생성 테스트</title>
+    <style>
+        body { max-width: 720px; margin: 40px auto; padding: 0 20px; font-family: system-ui, sans-serif; }
+        label { display: block; margin: 14px 0 6px; font-weight: 700; }
+        input, textarea, button { box-sizing: border-box; width: 100%; padding: 10px; font: inherit; }
+        textarea { min-height: 180px; resize: vertical; }
+        button { margin-top: 14px; border: 0; border-radius: 6px; background: #2563eb; color: white; cursor: pointer; }
+        button:disabled { opacity: .5; cursor: not-allowed; }
+        pre { padding: 14px; overflow: auto; border-radius: 6px; background: #f3f4f6; white-space: pre-wrap; }
+        .error { color: #b91c1c; }
+    </style>
+</head>
+<body>
+<h1>AI 공고 생성 테스트</h1>
+
+<button id="csrfButton" type="button">1. CSRF 토큰 발급</button>
+
+<section>
+    <label for="email">관리자 이메일</label>
+    <input id="email" type="email" value="admin@drawthon.local" required>
+
+    <label for="password">관리자 비밀번호</label>
+    <input id="password" type="password" value="drawthon-admin-1234" required>
+
+    <button id="loginButton" type="button" disabled>2. 관리자 로그인</button>
+</section>
+
+<section>
+    <label for="description">공고 상세 텍스트</label>
+    <textarea id="description" maxlength="4000" required
+              placeholder="예: 11월 20일 서울숲에서 환경 정화 봉사자를 10명 모집합니다."></textarea>
+
+    <button id="generateButton" type="button" disabled>3. AI 공고 생성</button>
+</section>
+
+<p id="status">상세 텍스트를 입력해 주세요.</p>
+<pre id="result">결과가 여기에 표시됩니다.</pre>
+
+<script>
+    const csrfButton = document.getElementById('csrfButton');
+    const loginButton = document.getElementById('loginButton');
+    const generateButton = document.getElementById('generateButton');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    let csrfHeaders = null;
+
+    async function responseBody(response) {
+        const text = await response.text();
+        if (!text) return null;
+        try { return JSON.parse(text); } catch { return text; }
+    }
+
+    async function request(path, options = {}) {
+        const response = await fetch(path, { credentials: 'same-origin', ...options });
+        const body = await responseBody(response);
+        if (!response.ok) {
+            const message = body?.detail || body?.message || body || `HTTP ${response.status}`;
+            throw new Error(`${path} 실패 (${response.status}): ${message}`);
+        }
+        return body;
+    }
+
+    async function run(button, action) {
+        button.disabled = true;
+        status.className = '';
+        try {
+            await action();
+        } catch (error) {
+            status.textContent = '요청 실패';
+            status.className = 'error';
+            result.textContent = error.message;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    csrfButton.addEventListener('click', () => run(csrfButton, async () => {
+        status.textContent = 'CSRF 토큰 발급 중...';
+        const csrf = await request('/api/auth/csrf');
+        csrfHeaders = {
+            'Content-Type': 'application/json',
+            [csrf.headerName]: csrf.token
+        };
+        loginButton.disabled = false;
+        generateButton.disabled = true;
+        status.textContent = 'CSRF 토큰 발급 완료';
+        result.textContent = JSON.stringify(csrf, null, 2);
+    }));
+
+    loginButton.addEventListener('click', () => run(loginButton, async () => {
+        if (!csrfHeaders) throw new Error('먼저 CSRF 토큰을 발급해 주세요.');
+        status.textContent = '관리자 로그인 중...';
+        const member = await request('/api/auth/login', {
+            method: 'POST',
+            headers: csrfHeaders,
+            body: JSON.stringify({
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value
+            })
+        });
+        generateButton.disabled = false;
+        status.textContent = '관리자 로그인 완료';
+        result.textContent = JSON.stringify(member, null, 2);
+    }));
+
+    generateButton.addEventListener('click', () => run(generateButton, async () => {
+        const description = document.getElementById('description').value.trim();
+        if (!description) throw new Error('공고 상세 텍스트를 입력해 주세요.');
+        status.textContent = 'AI 공고 생성 중...';
+        const draft = await request('/api/v1/posting/ai/draft', {
+            method: 'POST',
+            headers: csrfHeaders,
+            body: JSON.stringify({ description })
+        });
+        status.textContent = 'AI 공고 생성 완료';
+        result.textContent = JSON.stringify(draft, null, 2);
+    }));
+</script>
+</body>
+</html>

@@ -37,7 +37,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/auth-test.html", "/teammaker-test.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth-test.html", "/teammaker-test.html",  "/ai-posting-test.html").permitAll()
                         .requestMatchers(
                                 "/swagger-ui/**"
                                 , "/swagger-ui.html"
