@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +23,7 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -31,10 +33,15 @@ import java.util.List;
 public class SessionAuthApiController {
     private final MemberService memberService;
     private final SecurityContextRepository repository;
+    private final boolean publicAdminSignupEnabled;
 
-    public SessionAuthApiController(MemberService memberService, SecurityContextRepository repository) {
+    public SessionAuthApiController(MemberService memberService,
+                                    SecurityContextRepository repository,
+                                    @Value("${app.auth.public-admin-signup-enabled:false}")
+                                    boolean publicAdminSignupEnabled) {
         this.memberService = memberService;
         this.repository = repository;
+        this.publicAdminSignupEnabled = publicAdminSignupEnabled;
     }
 
     @Operation(summary = "CSRF 토큰 발급", description = "Swagger UI에서 POST 요청 전에 먼저 실행1!!")
@@ -51,11 +58,16 @@ public class SessionAuthApiController {
                 request.getEmail(), request.getPassword(), request.getNickname()));
     }
 
-    @Operation(summary = "관리자 회원가입", description = "ADMIN 권한을 가진 관리자만 새 관리자를 등록할 수 있습니다.")
+    @Operation(summary = "관리자 회원가입",
+            description = "개발 설정에서 공개 관리자 가입이 활성화된 경우 ADMIN 계정을 생성합니다. "
+                    + "운영에서는 PUBLIC_ADMIN_SIGNUP_ENABLED=false로 비활성화해야 합니다.")
     @PostMapping("/admin/signup")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
     public MemberResponse signupAdmin(@Valid @RequestBody SignupRequest request) {
+        if (!publicAdminSignupEnabled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "관리자 공개 회원가입이 비활성화되어 있습니다.");
+        }
         return MemberResponse.from(memberService.signupAdmin(
                 request.getEmail(), request.getPassword(), request.getNickname()));
     }

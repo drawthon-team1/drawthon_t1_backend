@@ -5,6 +5,8 @@ import com.drawthon.team1.posting.ai.dto.PostingDraftResponse;
 import com.drawthon.team1.posting.ai.service.PostingDraftService;
 import com.drawthon.team1.posting.entity.RewardType;
 import com.drawthon.team1.posting.entity.WorkType;
+import com.openai.core.JsonSchemaLocalValidation;
+import com.openai.models.responses.ResponseCreateParams;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -12,8 +14,19 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class PostingDraftServiceTest {
+    @Test
+    void structuredOutputSchemaAllowsOptionalEnumsWhenLocalValidationIsDisabled() {
+        assertThatCode(() -> ResponseCreateParams.builder()
+                .model("gpt-4o-mini")
+                .input("공고 초안을 작성해 주세요.")
+                .text(AiPostingDraft.class, JsonSchemaLocalValidation.NO)
+                .build())
+                .doesNotThrowAnyException();
+    }
+
     @Test
     void mapsPaidDraftAndReportsMissingRequiredFields() {
         AiPostingDraft ai = emptyDraft();

@@ -33,6 +33,14 @@ springdoc:
 
 app:
   frontend-base-url: http://localhost:5173
+  auth:
+    # 로컬 H2 개발용. 운영에서는 두 값을 false로 설정한다.
+    public-admin-signup-enabled: ${PUBLIC_ADMIN_SIGNUP_ENABLED:true}
+    dev-admin:
+      enabled: ${DEV_ADMIN_ENABLED:true}
+      email: ${DEV_ADMIN_EMAIL:admin@drawthon.local}
+      password: ${DEV_ADMIN_PASSWORD:drawthon-admin-1234}
+      nickname: ${DEV_ADMIN_NICKNAME:개발관리자}
       
 volunteer:
   api:

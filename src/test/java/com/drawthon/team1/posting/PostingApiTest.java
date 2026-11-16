@@ -144,7 +144,9 @@ class PostingApiTest {
     @Test
     void changeRequestWithoutCsrfIsForbidden() throws Exception {
         mockMvc.perform(json(post(BASE), recruitingBody("공고")).with(loginAs(adminId)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message")
+                        .value("CSRF 토큰이 누락되었거나 유효하지 않습니다."));
 
         assertThat(postingRepository.count()).isZero();
     }
