@@ -10,6 +10,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,9 +27,9 @@ import java.util.List;
  * MVP 기능(목록·상세 조회, 생성·수정·삭제, 신청·철회)에 필요한 항목만 둔다.
  * 1365 응답 항목명과 필드의 매핑은 VolunteerApiClient.toPost에서 관리한다.
  *
- * 리워드는 reward 컬럼 하나로 표현한다. 종류(getRewardType)는 저장하지 않고 출처로 정한다.
- * - 1365에서 가져온 공고: 봉사시간(시간) = 활동 종료시간 - 시작시간
- * - 직접 작성한 공고: 임금(원) = 관리자가 입력
+ * 리워드는 유형과 값을 함께 저장한다.
+ * - VOLUNTEER_HOURS: reward = 총 봉사시간
+ * - WAGE: reward = 일당(원)
  */
 
 @Entity
@@ -85,7 +87,12 @@ public class Post {
     @Column(length = 500)
     private String activityPlace;
 
-    /** 리워드 값. 1365 공고는 봉사시간(시간), 직접 작성 공고는 임금(원) */
+    /** 리워드 종류. 봉사시간 또는 일당 */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private RewardType rewardType;
+
+    /** 리워드 값. 봉사 공고는 총 시간, 유급 공고는 일당(원) */
     private Integer reward;
 
     /** 활동 주소 (지역 필터용). 1365 공고는 1365 주소, 직접 작성 공고는 관리자가 입력 */
@@ -140,9 +147,19 @@ public class Post {
         return toMinutes(activityEndTime);
     }
 
-    /** 1365 프로그램등록번호가 있으면 1365에서 가져온 봉사시간 공고, 없으면 직접 작성한 임금 공고 */
+    /** 기존 데이터와 테스트 빌더의 하위 호환을 위해 값이 없으면 출처로 유형을 보정한다. */
     public RewardType getRewardType() {
-        return programRegistrationNumber == null ? RewardType.WAGE : RewardType.VOLUNTEER_HOURS;
+        return rewardType != null
+                ? rewardType
+                : programRegistrationNumber == null ? RewardType.WAGE : RewardType.VOLUNTEER_HOURS;
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void ensureRewardType() {
+        if (rewardType == null) {
+            rewardType = programRegistrationNumber == null ? RewardType.WAGE : RewardType.VOLUNTEER_HOURS;
+        }
     }
 
     /**
@@ -186,6 +203,7 @@ public class Post {
                 .recruitmentEndDate(dto.getRecruitmentEndDate())
                 .recruitmentCapacity(dto.getRecruitmentCapacity())
                 .activityPlace(dto.getActivityPlace())
+                .rewardType(dto.getRewardType())
                 .reward(dto.getReward())
                 .address(normalizeAddress(dto.getAddress()))
                 .workType(dto.getWorkType() == null ? WorkType.ETC : dto.getWorkType())
@@ -203,9 +221,11 @@ public class Post {
         this.recruitmentEndDate = dto.getRecruitmentEndDate();
         this.recruitmentCapacity = dto.getRecruitmentCapacity();
         this.activityPlace = dto.getActivityPlace();
-        if (getRewardType() == RewardType.VOLUNTEER_HOURS) {
+        if (programRegistrationNumber != null) {
+            this.rewardType = RewardType.VOLUNTEER_HOURS;
             this.reward = volunteerHours(activityStartTime, activityEndTime);
-        } else if (dto.getReward() != null) {
+        } else {
+            this.rewardType = dto.getRewardType();
             this.reward = dto.getReward();
         }
         if (dto.getAddress() != null) {

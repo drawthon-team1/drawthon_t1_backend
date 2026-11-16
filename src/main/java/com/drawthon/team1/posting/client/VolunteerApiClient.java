@@ -2,6 +2,7 @@ package com.drawthon.team1.posting.client;
 
 import com.drawthon.team1.posting.dto.PostingExternalDTO;
 import com.drawthon.team1.posting.entity.Post;
+import com.drawthon.team1.posting.entity.RewardType;
 import com.drawthon.team1.posting.entity.WorkType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -200,6 +201,7 @@ public class VolunteerApiClient {
                     .recruitmentCapacity(toInteger(item.get("rcritNmpr")))
                     .registeringOrganizationName(item.get("nanmmbyNm"))
                     .activityPlace(item.get("actPlace"))
+                    .rewardType(RewardType.VOLUNTEER_HOURS)
                     .reward(Post.volunteerHours(item.get("actBeginTm"), item.get("actEndTm")))
                     .address(Post.normalizeAddress(item.get("areaAddress1")))
                     .workType(WorkType.infer(item.get("progrmSj"), item.get("progrmCn")))

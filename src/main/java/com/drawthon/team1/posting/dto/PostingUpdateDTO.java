@@ -1,5 +1,6 @@
 package com.drawthon.team1.posting.dto;
 
+import com.drawthon.team1.posting.entity.RewardType;
 import com.drawthon.team1.posting.entity.WorkType;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -55,7 +56,12 @@ public class PostingUpdateDTO {
     @Size(max = 500)
     private String activityPlace;
 
-    /** 임금(원). 직접 작성한 공고만 반영하고, 생략하면 기존 값을 유지한다. 1365 공고는 활동 시간으로 다시 계산한다 */
+    /** 직접 작성 공고의 리워드 유형. 1365 공고는 VOLUNTEER_HOURS로 유지한다 */
+    @NotNull
+    private RewardType rewardType;
+
+    /** WAGE면 일당(원), VOLUNTEER_HOURS면 총 봉사시간. 1365 공고는 활동 시간으로 다시 계산한다 */
+    @NotNull
     @Positive
     private Integer reward;
 

@@ -31,7 +31,7 @@ class PostingSessionLoginTest {
     private static final String PASSWORD = "password1234";
     private static final String POSTING = """
             {"programTitle":"고구마 수확 일손","programStartDate":"2030-12-01","programEndDate":"2030-12-02",
-             "recruitmentStartDate":"2030-11-01","recruitmentEndDate":"2030-11-30","recruitmentCapacity":3,"reward":50000}
+             "recruitmentStartDate":"2030-11-01","recruitmentEndDate":"2030-11-30","recruitmentCapacity":3,"rewardType":"WAGE","reward":50000}
             """;
 
     @Autowired private MockMvc mockMvc;
