@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,9 +39,9 @@ import java.util.List;
 /**
  * 모든 공고 API는 로그인이 필요하다.
  * 요청한 회원은 경로가 아니라 로그인 세션(@AuthenticationPrincipal)에서 가져와, 다른 회원으로 위장할 수 없다.
+ * CORS 허용 주소는 SecurityConfig의 전역 설정(corsConfigurationSource)에서 한 곳으로 관리한다.
  */
 
-@CrossOrigin(value = "http://localhost:3000")
 @RestController
 @RequestMapping("/api/v1/posting")
 @RequiredArgsConstructor
@@ -51,14 +50,16 @@ public class PostingController {
     private final PostingService postingService;
 
     @Operation(summary = "공고 목록 조회",
-            description = "대시보드용 요약 정보를 최신 등록순으로 반환한다. 내용·시간·신청 인원은 단건 조회에서 확인한다.\n\n"
+            description = "대시보드용 요약 정보(활동 시간, 신청 인원 포함)를 최신 등록순으로 반환한다. 상세 설명은 단건 조회에서 확인한다.\n\n"
                     + "필터: 값을 보내지 않은 조건은 적용하지 않는다. 서로 다른 조건은 모두 만족해야 하고(AND), "
                     + "한 조건에 여러 값을 보내면 하나만 맞아도 된다(OR). 여러 값은 durations=ONE_DAY,UP_TO_3_DAYS처럼 쉼표로 보낸다.\n\n"
                     + "권한: 로그인한 회원 (ADMIN, USER)\n\n"
                     + "실패: 400 잘못된 필터 값, 일정 마감일이 시작일보다 빠름")
     @GetMapping
     public ResponseEntity<List<PostingInfoDTO>> getPostings(
-            @Parameter(description = "공고 유형. VOLUNTEER_HOURS = 봉사(1365 공고), WAGE = 일자리(직접 작성 공고). 생략하면 전체")
+            @Parameter(description = "검색어. 공고 제목, 등록 기관, 봉사 장소, 주소 중 하나에 포함되면 해당 (대소문자 무시)", example = "수확")
+            @RequestParam(required = false) String keyword,
+            @Parameter(description = "공고 유형. VOLUNTEER_HOURS = 봉사, WAGE = 유급. 생략하면 전체")
             @RequestParam(required = false) RewardType rewardType,
             @Parameter(description = "지역: 시·군(구). 공고 주소에 이 이름이 있어야 한다", example = "포천시")
             @RequestParam(required = false) String sigungu,
@@ -79,7 +80,7 @@ public class PostingController {
             @RequestParam(required = false) List<RecruitmentStatus> statuses,
             @Parameter(description = "작업 종류. HARVEST 수확 / SORTING_PACKING 선별·포장 / PLANTING_CULTIVATION 파종·재배 / WEEDING 제초 / ETC 기타")
             @RequestParam(required = false) List<WorkType> workTypes) {
-        PostingFilter filter = new PostingFilter(rewardType, sigungu, eupMyeonDong, startDate, endDate,
+        PostingFilter filter = new PostingFilter(keyword, rewardType, sigungu, eupMyeonDong, startDate, endDate,
                 durations, timeSlots, statuses, workTypes);
         return ResponseEntity.ok(postingService.getPostings(filter));
     }
@@ -136,7 +137,8 @@ public class PostingController {
 
     @Operation(summary = "공고 수정",
             description = "우리 DB의 공고만 수정되며 1365에는 반영되지 않는다. PUT이므로 수정 가능한 항목을 모두 보내야 한다. "
-                    + "reward(임금)는 직접 작성한 공고에만 반영되고, 1365 공고의 봉사시간은 수정한 활동 시간으로 다시 계산한다.\n\n"
+                    + "직접 작성한 공고는 보낸 rewardType과 reward로 바뀐다. "
+                    + "1365에서 가져온 공고는 보낸 rewardType과 reward를 무시하고, 봉사시간을 수정한 활동 시간으로 다시 계산한다.\n\n"
                     + "권한: ADMIN\n\n"
                     + "실패: 400 입력 오류, 403 권한 없음, 404 공고 없음")
     @PutMapping("/{postingId}")

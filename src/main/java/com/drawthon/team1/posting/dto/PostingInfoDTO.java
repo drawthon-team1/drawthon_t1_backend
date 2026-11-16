@@ -12,7 +12,7 @@ import java.time.LocalDate;
 
 /**
  * 공고 조회 dto
- * 목록 조회는 요약 항목만, 단일 공고 조회는 내용·시간·신청 인원까지 담는다. 값이 없는 항목은 응답에서 제외된다.
+ * 목록 조회는 요약 항목(활동 시간·신청 인원 포함)만, 단일 공고 조회는 내용까지 담는다. 값이 없는 항목은 응답에서 제외된다.
  */
 
 @Getter
@@ -43,17 +43,15 @@ public class PostingInfoDTO {
     /** 이 서비스에서 신청한 인원 */
     private final Long applicantCount;
 
-    /** 목록 조회용 요약 */
-    public static PostingInfoDTO from(Post post, RecruitmentStatus recruitmentStatus) {
-        return summaryBuilder(post, recruitmentStatus).build();
+    /** 목록 조회용 요약. 카드에 "신청 2/4명"을 보여 줄 수 있도록 신청 인원을 포함한다. */
+    public static PostingInfoDTO from(Post post, long applicantCount, RecruitmentStatus recruitmentStatus) {
+        return summaryBuilder(post, recruitmentStatus).applicantCount(applicantCount).build();
     }
 
     /** 단일 공고 조회용 전체 항목 */
     public static PostingInfoDTO detailFrom(Post post, long applicantCount, RecruitmentStatus recruitmentStatus) {
         return summaryBuilder(post, recruitmentStatus)
                 .programContent(post.getProgramContent())
-                .activityStartTime(post.getActivityStartTime())
-                .activityEndTime(post.getActivityEndTime())
                 .applicantCount(applicantCount)
                 .build();
     }
@@ -67,6 +65,8 @@ public class PostingInfoDTO {
                 .activityPlace(post.getActivityPlace())
                 .programStartDate(post.getProgramStartDate())
                 .programEndDate(post.getProgramEndDate())
+                .activityStartTime(post.getActivityStartTime())
+                .activityEndTime(post.getActivityEndTime())
                 .recruitmentStartDate(post.getRecruitmentStartDate())
                 .recruitmentEndDate(post.getRecruitmentEndDate())
                 .recruitmentCapacity(post.getRecruitmentCapacity())

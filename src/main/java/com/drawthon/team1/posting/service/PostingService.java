@@ -68,9 +68,14 @@ public class PostingService {
                 .collect(Collectors.toMap(PostApplicantCount::getPostId, PostApplicantCount::getApplicantCount));
 
         return postingRepository.findAllByOrderByIdDesc().stream()
-                .map(post -> Map.entry(post, post.recruitmentStatus(today, applicantCounts.getOrDefault(post.getId(), 0L))))
-                .filter(entry -> filter.matches(entry.getKey(), entry.getValue()))
-                .map(entry -> PostingInfoDTO.from(entry.getKey(), entry.getValue()))
+                .filter(post -> {
+                    long applicantCount = applicantCounts.getOrDefault(post.getId(), 0L);
+                    return filter.matches(post, post.recruitmentStatus(today, applicantCount));
+                })
+                .map(post -> {
+                    long applicantCount = applicantCounts.getOrDefault(post.getId(), 0L);
+                    return PostingInfoDTO.from(post, applicantCount, post.recruitmentStatus(today, applicantCount));
+                })
                 .toList();
     }
 
@@ -97,10 +102,16 @@ public class PostingService {
      */
     public PostingResponseDTO importPosting(Long memberId, PostingImportDTO postingImportDTO) {
         requireRole(memberId, MemberRole.ADMIN);
+        return importFromVolunteerApi(postingImportDTO.getProgramRegistrationNumber());
+    }
 
-        String programRegistrationNumber = postingImportDTO.getProgramRegistrationNumber();
+    /**
+     * 프로그램등록번호로 1365 상세를 가져와 저장한다. 권한 확인은 호출하는 쪽에서 한다.
+     * (관리자 API, 서버 시작 시 자동 가져오기)
+     */
+    public PostingResponseDTO importFromVolunteerApi(String programRegistrationNumber) {
         if (postingRepository.existsByProgramRegistrationNumber(programRegistrationNumber)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 공고입니다.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, DUPLICATE_POSTING_MESSAGE);
         }
 
         Post post = volunteerApiClient.fetchDetail(programRegistrationNumber)

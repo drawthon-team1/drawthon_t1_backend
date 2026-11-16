@@ -77,6 +77,11 @@ public class VolunteerApiClient {
      * 상세 조회 결과를 저장 전 Post로 변환한다.
      * @return 1365에 해당 프로그램이 없으면 빈 값
      */
+    /** 인증키가 설정돼 있어 1365를 호출할 수 있는지 */
+    public boolean isConfigured() {
+        return StringUtils.hasText(serviceKey);
+    }
+
     public Optional<Post> fetchDetail(String programRegisterNo) {
         List<Map<String, String>> items = fetchItems("getVltrPartcptnItem", Map.of("progrmRegistNo", programRegisterNo));
         return items.stream().findFirst().map(item -> toPost(programRegisterNo, item));

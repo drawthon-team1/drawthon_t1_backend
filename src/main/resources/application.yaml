@@ -1,6 +1,9 @@
 spring:
   application:
     name: drawthon_backend
+  # 프로젝트 폴더의 .env(KEY=값 형식)를 읽어 API 키 등을 환경변수처럼 쓴다. 파일이 없으면 무시한다. (.env는 gitignore 대상)
+  config:
+    import: optional:file:.env[.properties]
     
   datasource:
     url: jdbc:h2:mem:drawthon;MODE=MySQL;DB_CLOSE_DELAY=-1
@@ -47,6 +50,11 @@ volunteer:
     base-url: https://apis.data.go.kr/1741000/volunteerPartcptnService
     # 1365 검색에 항상 붙이는 상위분야코드. 0600 = 농어촌 봉사 (따옴표가 없으면 YAML이 8진수 숫자로 읽음)
     upper-category-code: "0600"
+    # 서버 시작 시 1365 농어촌 공고를 가져와 저장할지와 최대 건수 (H2 메모리 DB라 재시작하면 비기 때문)
+    import-on-startup: ${VOLUNTEER_IMPORT_ON_STARTUP:true}
+    import-limit: 50
+    # 공고 상세 요청 사이 간격(ms). 공공데이터포털이 연속 요청을 429로 막기 때문
+    import-interval-ms: 300
     service-key: ${VOLUNTEER_API_SERVICE_KEY:}
 
 kakao:
