@@ -7,18 +7,22 @@ import com.drawthon.team1.posting.entity.WorkType;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Stream;
 
 /**
  * 공고 목록 필터. 값이 없는 조건은 적용하지 않는다.
  * 서로 다른 조건은 모두 만족해야 하고(AND), 한 조건에 여러 값을 고르면 하나만 맞아도 된다(OR).
  *
+ * @param keyword 검색어. 제목, 등록 기관, 봉사 장소, 주소 중 하나에 포함되면 해당 (대소문자 무시)
  * @param rewardType 공고 유형. VOLUNTEER_HOURS(봉사) / WAGE(일자리)
  * @param sigungu 시·군(구). 주소에 이 이름이 있어야 한다
  * @param eupMyeonDong 읍·면·동. 주소에 이 이름이 있어야 한다
  * @param startDate 일정 시작일. 이날 이후에도 봉사 기간이 이어지는 공고
  * @param endDate 일정 마감일. 이날 이전에 봉사 기간이 시작되는 공고
  */
-public record PostingFilter(RewardType rewardType,
+public record PostingFilter(String keyword,
+                            RewardType rewardType,
                             String sigungu,
                             String eupMyeonDong,
                             LocalDate startDate,
@@ -29,17 +33,27 @@ public record PostingFilter(RewardType rewardType,
                             List<WorkType> workTypes) {
 
     public static PostingFilter none() {
-        return new PostingFilter(null, null, null, null, null, null, null, null, null);
+        return new PostingFilter(null, null, null, null, null, null, null, null, null, null);
     }
 
     public boolean matches(Post post, RecruitmentStatus status) {
-        return matchesRewardType(post)
+        return matchesKeyword(post)
+                && matchesRewardType(post)
                 && matchesRegion(post)
                 && matchesSchedule(post)
                 && matchesDuration(post)
                 && matchesTimeSlot(post)
                 && matchesStatus(status)
                 && matchesWorkType(post);
+    }
+
+    private boolean matchesKeyword(Post post) {
+        if (isBlank(keyword)) {
+            return true;
+        }
+        String needle = keyword.trim().toLowerCase(Locale.ROOT);
+        return Stream.of(post.getProgramTitle(), post.getRegisteringOrganizationName(), post.getActivityPlace(), post.getAddress())
+                .anyMatch(text -> text != null && text.toLowerCase(Locale.ROOT).contains(needle));
     }
 
     private boolean matchesRewardType(Post post) {

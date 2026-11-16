@@ -194,6 +194,24 @@ class PostingFilterApiTest {
     }
 
     @Test
+    void filtersByKeywordInTitleOrganizationPlaceOrAddress() throws Exception {
+        expectTitles(list("keyword", "3개월"), HOURS);
+        expectTitles(list("keyword", "포천"), HOURS);
+        expectTitles(list("keyword", "일자리"), ONE_DAY, TWENTY_DAYS, FULL, UPCOMING);
+        expectTitles(list("keyword", "  모집예정 "), UPCOMING);
+        expectTitles(list("keyword", "없는 공고"));
+    }
+
+    @Test
+    void listIncludesApplicantCount() throws Exception {
+        list("keyword", "인원마감").andExpect(jsonPath("$[0].applicantCount").value(1));
+        list("keyword", "3개월").andExpect(jsonPath("$[0].applicantCount").value(0));
+        list("keyword", "3개월")
+                .andExpect(jsonPath("$[0].activityStartTime").value("9"))
+                .andExpect(jsonPath("$[0].activityEndTime").value("17"));
+    }
+
+    @Test
     void rejectsUnknownFilterValue() throws Exception {
         list("rewardType", "MONEY").andExpect(status().isBadRequest());
         list("durations", "FOREVER").andExpect(status().isBadRequest());

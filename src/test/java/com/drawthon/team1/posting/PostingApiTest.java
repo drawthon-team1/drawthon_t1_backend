@@ -382,7 +382,7 @@ class PostingApiTest {
                 .andExpect(jsonPath("$[0].programTitle").value("환경 정화 봉사"))
                 .andExpect(jsonPath("$[0].rewardType").value("VOLUNTEER_HOURS"))
                 .andExpect(jsonPath("$[0].programContent").doesNotExist())
-                .andExpect(jsonPath("$[0].applicantCount").doesNotExist());
+                .andExpect(jsonPath("$[0].applicantCount").value(0));
 
         as(adminId, get(BASE + "/" + latestId))
                 .andExpect(status().isOk())
