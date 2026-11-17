@@ -1,6 +1,7 @@
 package com.drawthon.team1.global.security;
 
 import jakarta.servlet.DispatcherType;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,15 +19,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-            SecurityContextRepository repository) throws Exception {
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            SecurityContextRepository repository,
+            CorsConfigurationSource corsConfigurationSource) throws Exception {
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
                 .securityContext(context -> context.securityContextRepository(repository))
@@ -79,9 +83,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.frontend-base-url:http://localhost:5173}") String frontendBaseUrl) {
+        // 배포 환경에서는 Vercel이 브라우저의 Origin 헤더를 그대로 넘기므로 프론트 주소(FRONTEND_BASE_URL)도 허용한다.
+        Set<String> allowedOrigins = new LinkedHashSet<>(List.of("http://localhost:3000", "http://localhost:5173"));
+        if (frontendBaseUrl != null && !frontendBaseUrl.isBlank()) {
+            allowedOrigins.add(frontendBaseUrl.trim().replaceAll("/+$", ""));
+        }
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        config.setAllowedOrigins(List.copyOf(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
