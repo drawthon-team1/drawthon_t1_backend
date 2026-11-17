@@ -1,0 +1,10 @@
+# API 키가 들어 있는 .env는 이미지에 넣지 않는다 (배포에서는 Render 환경변수 사용)
+.env
+.env.*
+!.env.example
+.git
+.gradle
+.idea
+build
+out
+*.iml
