@@ -99,3 +99,15 @@ POST 요청이 `403`이면 CSRF API를 다시 호출한 뒤 재시도하세요.
 5. 팀 현황에서 추가된 회원을 확인합니다.
 
 페이지 아래의 API 요청 기록에서 각 요청 URL, HTTP 상태와 응답을 확인할 수 있습니다.
+
+## 배포 (Render + Vercel)
+
+백엔드는 Render(Docker, 무료), 프론트는 Vercel에 올린다. 브라우저는 Vercel 주소로만 요청하고, Vercel이 `/api` 요청을 Render로 넘긴다(프론트 저장소의 `vercel.json`).
+
+1. Render에 GitHub로 로그인한 뒤 **New → Blueprint**에서 이 저장소를 고른다. `render.yaml`대로 백엔드 서비스(`drawthon-t1-backend`)와 무료 Postgres(`drawthon-db`)가 만들어진다.
+2. 대시보드에서 비밀 값을 입력한다: `VOLUNTEER_API_SERVICE_KEY`, `KAKAO_REST_API_KEY`, `OPENAI_API_KEY`, `DEV_ADMIN_PASSWORD`.
+3. 배포가 끝나면 서비스 주소가 `https://drawthon-t1-backend.onrender.com`인지 확인한다. 다르면 프론트 `vercel.json`의 주소를 바꾼다.
+
+- 배포에서는 `prod` 프로필(`application-prod.yaml`)로 Postgres를 써서, 서버가 잠들거나 재시작해도 계정·팀·신청 내역이 남는다. 로컬은 지금처럼 H2 메모리 DB를 쓴다.
+- 무료 플랜은 15분 동안 요청이 없으면 잠들고, 다음 요청 때 깨어나는 데 약 1분 걸린다. 시연 전에 사이트를 한 번 열어 깨워 둔다.
+- 무료 Postgres는 생성 후 30일 뒤 만료된다.

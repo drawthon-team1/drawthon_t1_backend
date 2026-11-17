@@ -22,6 +22,8 @@ spring:
       enabled: true
 
 server:
+  # Render 같은 배포 환경은 PORT 환경변수로 포트를 정해 준다. 로컬은 8080
+  port: ${PORT:8080}
   servlet:
     session:
       timeout: 30m #세션 만료 30분
@@ -35,7 +37,8 @@ springdoc:
       enabled: true
 
 app:
-  frontend-base-url: http://localhost:5173
+  # 팀 초대 링크에 쓰는 프론트 주소. 배포에서는 FRONTEND_BASE_URL로 Vercel 주소를 넣는다
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
   auth:
     # 로컬 H2 개발용. 운영에서는 두 값을 false로 설정한다.
     public-admin-signup-enabled: ${PUBLIC_ADMIN_SIGNUP_ENABLED:true}

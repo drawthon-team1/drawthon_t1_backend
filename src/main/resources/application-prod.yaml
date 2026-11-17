@@ -1,0 +1,23 @@
+# 배포(Render)용 설정. SPRING_PROFILES_ACTIVE=prod일 때 application.yaml 위에 덮어쓴다.
+# 로컬 개발은 이 파일을 쓰지 않고 그대로 H2 메모리 DB를 쓴다.
+spring:
+  datasource:
+    # Render Postgres 접속 정보. render.yaml이 DB 값을 환경변수로 넣어 준다.
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      # 무료 인스턴스(메모리 512MB)와 무료 Postgres 연결 수에 맞춰 작게 둔다
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      # 재시작해도 데이터가 남도록 테이블을 지우지 않고 필요한 변경만 반영한다
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  # Vercel(프록시) 뒤에서 원래 요청 주소·프로토콜을 인식한다
+  forward-headers-strategy: framework

@@ -1,0 +1,51 @@
+# Render Blueprint: Render 대시보드에서 New > Blueprint로 이 저장소를 연결하면 아래 서비스가 만들어진다.
+# 무료 플랜: 15분 동안 요청이 없으면 잠들고(다음 요청 때 약 1분 걸려 깨어남), 무료 Postgres는 생성 후 30일 뒤 만료된다.
+services:
+  - type: web
+    name: drawthon-t1-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/auth/csrf
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: drawthon-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: drawthon-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: drawthon-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: drawthon-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: drawthon-db
+          property: password
+      # 팀 초대 링크가 이 주소로 만들어진다
+      - key: FRONTEND_BASE_URL
+        value: https://drawthon-t1-frontend.vercel.app
+      # 아래 키들은 저장소에 넣지 않고 Render 대시보드에서 직접 입력한다 (sync: false)
+      - key: VOLUNTEER_API_SERVICE_KEY
+        sync: false
+      - key: KAKAO_REST_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      # 개발용 관리자 계정 비밀번호. 저장소의 기본값을 쓰지 않도록 대시보드에서 정한다
+      - key: DEV_ADMIN_PASSWORD
+        sync: false
+
+databases:
+  - name: drawthon-db
+    plan: free
+    region: singapore
