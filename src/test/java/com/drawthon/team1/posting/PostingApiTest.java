@@ -134,11 +134,25 @@ class PostingApiTest {
     // ---- 보안 ----
 
     @Test
-    void anonymousRequestsAreUnauthorized() throws Exception {
-        mockMvc.perform(get(BASE)).andExpect(status().isUnauthorized());
-        mockMvc.perform(json(post(BASE), recruitingBody("공고")).with(csrf())).andExpect(status().isUnauthorized());
+    void anonymousCanReadPostingsButNothingElse() throws Exception {
+        Long postingId = savePost(recruitingPost().programContent("상세 내용").build());
 
-        assertThat(postingRepository.count()).isZero();
+        // 목록·상세는 로그인 없이 볼 수 있다
+        mockMvc.perform(get(BASE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(postingId));
+        mockMvc.perform(get(BASE + "/" + postingId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.programContent").value("상세 내용"));
+        mockMvc.perform(get(BASE).param("rewardType", "VOLUNTEER_HOURS")).andExpect(status().isOk());
+
+        // 1365 검색, 공고 생성, 신청은 로그인이 필요하다
+        mockMvc.perform(get(BASE + "/external")).andExpect(status().isUnauthorized());
+        mockMvc.perform(json(post(BASE), recruitingBody("공고")).with(csrf())).andExpect(status().isUnauthorized());
+        mockMvc.perform(post(BASE + "/" + postingId + "/application").with(csrf())).andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(volunteerApiClient);
+        assertThat(postingRepository.count()).isEqualTo(1);
     }
 
     @Test

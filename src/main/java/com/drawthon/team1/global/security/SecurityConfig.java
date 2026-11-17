@@ -51,6 +51,10 @@ public class SecurityConfig {
                         // 지도 공고 조회는 비로그인도 허용한다.
                         // 주소 변환(/api/map/geocode)은 카카오 API 키 사용량을 소모하므로 로그인한 사용자만 허용한다.
                         .requestMatchers(HttpMethod.GET, "/api/map/notices", "/api/map/notices/**").permitAll()
+                        // 공고 목록·상세는 비로그인 포함 모두에게 공개한다.
+                        // 1365 검색(/external)은 1365 API 사용량을 소모하므로 로그인 필요. {postingId} 패턴에 걸리지 않게 먼저 둔다.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posting/external").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posting", "/api/v1/posting/{postingId}").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> {
